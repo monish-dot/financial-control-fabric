@@ -32,6 +32,12 @@ from backend.anomaly.residual_store import ResidualStore
 from backend.database.connection import Database
 from backend.models.financial_event import FinancialEvent
 from backend.repositories.financial_event import FinancialEventRepository
+from backend.reconciliation.models import (
+    ReconciliationConstraints,
+    ReconciliationItem,
+    ReconciliationResult,
+)
+from backend.reconciliation.service import ReconciliationService
 
 
 class EventCreateResponse(BaseModel):
@@ -74,6 +80,17 @@ class ResidualDistributionResponse(BaseModel):
     statistics: ResidualDistributionStatistics
 
 
+class ReconciliationRequest(BaseModel):
+    """Read-only many-to-many reconciliation input."""
+
+    internal_items: list[ReconciliationItem] = Field(default_factory=list)
+    external_items: list[ReconciliationItem] = Field(default_factory=list)
+    constraints: ReconciliationConstraints = Field(
+        default_factory=ReconciliationConstraints
+    )
+    reconciliation_id: str | None = None
+
+
 CONTEXT_MODELS: dict[ControlDomain, type[ControlContext]] = {
     ControlDomain.NODAL_ESCROW: NodalEscrowContext,
     ControlDomain.SETTLEMENT: SettlementContext,
@@ -103,6 +120,7 @@ def create_app(database: Database | None = None) -> FastAPI:
     )
     residual_engine = ResidualIntelligenceEngine()
     distribution_analyzer = ResidualDistributionAnalyzer()
+    reconciliation_service = ReconciliationService()
 
     app = FastAPI(
         title="Financial Control Fabric",
@@ -127,6 +145,9 @@ def create_app(database: Database | None = None) -> FastAPI:
 
     def get_distribution_analyzer() -> ResidualDistributionAnalyzer:
         return distribution_analyzer
+
+    def get_reconciliation_service() -> ReconciliationService:
+        return reconciliation_service
 
     registry = build_default_registry()
 
@@ -262,6 +283,47 @@ def create_app(database: Database | None = None) -> FastAPI:
             control_id=control.control_id,
             description=CONTROL_DESCRIPTIONS[normalized_domain],
         )
+
+    @app.post(
+        "/reconciliation/settlement",
+        response_model=ReconciliationResult,
+    )
+    def reconcile_settlement(
+        request: ReconciliationRequest,
+        service: ReconciliationService = Depends(get_reconciliation_service),
+    ) -> ReconciliationResult:
+        """Propose deterministic settlement allocations without side effects."""
+
+        try:
+            return service.reconcile(
+                request.internal_items,
+                request.external_items,
+                request.constraints,
+                reconciliation_id=request.reconciliation_id,
+            )
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(error),
+            ) from error
+
+    @app.get(
+        "/reconciliation/{reconciliation_id}",
+        response_model=ReconciliationResult,
+    )
+    def get_reconciliation(
+        reconciliation_id: str,
+        service: ReconciliationService = Depends(get_reconciliation_service),
+    ) -> ReconciliationResult:
+        """Retrieve a previously proposed reconciliation result."""
+
+        result = service.get_reconciliation(reconciliation_id)
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"reconciliation '{reconciliation_id}' not found",
+            )
+        return result
 
     @app.get("/residuals", response_model=list[ResidualObservation])
     def list_residuals(
@@ -432,4 +494,10 @@ def create_app(database: Database | None = None) -> FastAPI:
 
 app = create_app()
 
-__all__ = ["app", "create_app", "EventCreateResponse", "FinancialEvent"]
+__all__ = [
+    "app",
+    "create_app",
+    "EventCreateResponse",
+    "FinancialEvent",
+    "ReconciliationRequest",
+]

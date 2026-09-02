@@ -1,0 +1,561 @@
+PHASE 4 — CONSTRAINED RECONCILIATION ENGINE
+
+Phase 3 is complete.
+
+66 tests passed.
+
+The Residual Intelligence Engine is working.
+
+Now implement ONLY Phase 4.
+
+Do NOT implement:
+- AI/LLM agent
+- cryptographic proofs
+- frontend/dashboard
+- external banking APIs
+- autonomous financial actions
+
+The purpose of this phase is to build a deterministic reconciliation optimizer for complex many-to-many settlement relationships.
+
+==================================================
+CORE OBJECTIVE
+==================================================
+
+Traditional matching often assumes:
+
+one internal transaction
+↔
+one external transaction
+
+This is insufficient for settlement systems.
+
+Our engine must support:
+
+many internal obligations
+↔
+many external settlement records
+
+Examples:
+
+3 internal obligations
+→ 1 bank settlement
+
+1 internal obligation
+→ 3 partner confirmations
+
+5 internal obligations
+→ 2 bank settlements
+
+The engine must determine the best valid allocation subject to financial constraints.
+
+==================================================
+1. RECONCILIATION DATA MODELS
+==================================================
+
+Create:
+
+ReconciliationItem
+
+Fields:
+
+item_id
+side
+item_type
+entity_id
+account_id
+merchant_id
+partner_id
+amount
+currency
+timestamp
+reference_id
+status
+metadata
+
+side:
+
+INTERNAL
+EXTERNAL
+
+item_type examples:
+
+SETTLEMENT_OBLIGATION
+BANK_SETTLEMENT
+PARTNER_CONFIRMATION
+
+Use Decimal for amounts.
+
+Never use float for financial decisions.
+
+==================================================
+2. MATCH ALLOCATION MODEL
+==================================================
+
+Create:
+
+MatchAllocation
+
+Fields:
+
+allocation_id
+internal_item_id
+external_item_id
+allocated_amount
+currency
+confidence
+reason
+constraints_satisfied
+metadata
+
+An internal or external item may participate in multiple allocations.
+
+The sum of allocations cannot exceed the amount available on either side.
+
+==================================================
+3. RECONCILIATION RESULT
+==================================================
+
+Create:
+
+ReconciliationResult
+
+Fields:
+
+reconciliation_id
+matched_amount
+unmatched_internal_amount
+unmatched_external_amount
+allocation_count
+match_rate
+currency
+status
+allocations
+explanation
+metadata
+
+Statuses:
+
+FULLY_RECONCILED
+PARTIALLY_RECONCILED
+UNRECONCILED
+
+==================================================
+4. CONSTRAINTS
+==================================================
+
+The optimizer must enforce:
+
+CONSTRAINT 1:
+
+For every internal item:
+
+sum(allocated_amount)
+<=
+internal_amount
+
+CONSTRAINT 2:
+
+For every external item:
+
+sum(allocated_amount)
+<=
+external_amount
+
+CONSTRAINT 3:
+
+Allocations cannot cross currencies.
+
+CONSTRAINT 4:
+
+Negative allocations are forbidden.
+
+CONSTRAINT 5:
+
+An allocation must satisfy configured matching constraints.
+
+==================================================
+5. MATCHING SIGNALS
+==================================================
+
+Create deterministic matching signals:
+
+amount similarity
+reference similarity
+entity compatibility
+account compatibility
+merchant compatibility
+partner compatibility
+timestamp proximity
+currency equality
+
+Do not use an LLM.
+
+Do not use embeddings yet.
+
+Create a deterministic compatibility score.
+
+The score must be explainable.
+
+==================================================
+6. OPTIMIZATION OBJECTIVE
+==================================================
+
+Implement an optimizer using OR-Tools if practical.
+
+Objective:
+
+maximize total valid matched amount
+
+while respecting constraints.
+
+Secondary objective:
+
+prefer stronger compatibility matches.
+
+Conceptually:
+
+maximize:
+
+matched_amount
++
+small_weight × compatibility_score
+
+Do NOT allow compatibility score to override financial constraints.
+
+Financial feasibility always comes first.
+
+If OR-Tools cannot be used reliably in the current environment, implement a deterministic fallback optimizer and document the limitation.
+
+==================================================
+7. MANY-TO-MANY EXAMPLE
+==================================================
+
+Create a deterministic test:
+
+Internal:
+
+I1 = ₹100
+I2 = ₹200
+I3 = ₹300
+
+External:
+
+E1 = ₹250
+E2 = ₹350
+
+A valid solution should be able to allocate:
+
+I1 → E1 = ₹100
+I2 → E1 = ₹150
+I2 → E2 = ₹50
+I3 → E2 = ₹300
+
+Total:
+
+₹600 internal
+₹600 external
+
+Therefore:
+
+matched_amount = ₹600
+match_rate = 100%
+status = FULLY_RECONCILED
+
+The system must support this without requiring one-to-one matching.
+
+==================================================
+8. PARTIAL MATCH EXAMPLE
+==================================================
+
+Internal:
+
+I1 = ₹100
+I2 = ₹200
+I3 = ₹300
+
+External:
+
+E1 = ₹250
+E2 = ₹200
+
+Maximum matched amount:
+
+₹450
+
+The result must show:
+
+matched_amount = ₹450
+unmatched_internal_amount = ₹150
+unmatched_external_amount = ₹0
+status = PARTIALLY_RECONCILED
+
+==================================================
+9. TIMING DIFFERENCE
+==================================================
+
+Support configurable timing windows.
+
+Example:
+
+Internal settlement:
+10:00
+
+External bank settlement:
+10:20
+
+If configured tolerance window = 30 minutes:
+
+the records may be considered temporally compatible.
+
+However:
+
+timing compatibility must NOT change the actual financial amounts.
+
+Record the timing difference explicitly in metadata.
+
+==================================================
+10. REFERENCE MATCHING
+==================================================
+
+Support deterministic reference matching.
+
+Examples:
+
+internal reference:
+SET-1001
+
+external reference:
+BANK-SET-1001
+
+The engine should support configurable normalized reference comparison.
+
+Do not assume all systems use identical identifiers.
+
+==================================================
+11. PARTIAL SETTLEMENT
+==================================================
+
+Support:
+
+internal obligation = ₹1,000
+
+external settlement 1 = ₹600
+
+external settlement 2 = ₹400
+
+Result:
+
+FULLY_RECONCILED
+
+Also support:
+
+internal obligation = ₹1,000
+
+external settlement = ₹700
+
+Result:
+
+PARTIALLY_RECONCILED
+
+unmatched internal = ₹300
+
+==================================================
+12. DUPLICATE EXTERNAL RECORD
+==================================================
+
+Create a test where:
+
+Internal = ₹500
+
+External:
+
+E1 = ₹500
+E2 = ₹500
+
+The optimizer must NOT match both.
+
+Only ₹500 can be allocated.
+
+The remaining external amount must remain unmatched.
+
+This is critical.
+
+==================================================
+13. CURRENCY ISOLATION
+==================================================
+
+Test:
+
+Internal INR = ₹1,000
+External USD = $1,000
+
+They must NEVER be matched.
+
+Do not perform implicit FX conversion.
+
+Currency conversion may be added later as an explicit configured capability.
+
+==================================================
+14. RECONCILIATION EXPLANATION
+==================================================
+
+The result must be explainable.
+
+Example:
+
+"₹600 matched across 3 internal obligations and 2 external settlements. All allocation capacity constraints satisfied."
+
+For partial match:
+
+"₹450 matched. ₹150 internal obligation remains unmatched."
+
+Do not use an LLM to generate these explanations.
+
+Generate them deterministically.
+
+==================================================
+15. API
+==================================================
+
+Add:
+
+POST /reconciliation/settlement
+
+Input:
+
+internal_items
+external_items
+constraints
+
+Output:
+
+ReconciliationResult
+
+Also add:
+
+GET /reconciliation/{reconciliation_id}
+
+Do not expose arbitrary SQL.
+
+==================================================
+16. TESTS
+==================================================
+
+Add tests for:
+
+1. one-to-one matching
+2. many-to-one matching
+3. one-to-many matching
+4. many-to-many matching
+5. partial settlement
+6. full settlement
+7. duplicate external records
+8. currency isolation
+9. negative allocation rejection
+10. allocation cannot exceed internal amount
+11. allocation cannot exceed external amount
+12. timestamp tolerance
+13. reference normalization
+14. merchant compatibility
+15. partner compatibility
+16. entity compatibility
+17. deterministic repeated result
+18. empty internal set
+19. empty external set
+20. zero amount handling
+21. explanation generation
+22. match-rate calculation
+
+==================================================
+17. DETERMINISM
+==================================================
+
+Given identical input:
+
+the optimizer must return the same result.
+
+Do not use randomness.
+
+Do not use an LLM.
+
+Do not use nondeterministic ordering.
+
+Sort candidates deterministically before optimization.
+
+==================================================
+18. ARCHITECTURE
+==================================================
+
+Create:
+
+backend/
+    reconciliation/
+        models.py
+        constraints.py
+        scoring.py
+        optimizer.py
+        matcher.py
+        service.py
+
+Keep reconciliation separate from:
+
+backend/controls/
+
+and:
+
+backend/anomaly/
+
+Architecture:
+
+Financial Events
+       ↓
+Financial Controls
+       ↓
+Settlement Obligations
+       ↓
+Reconciliation Optimizer
+       ↓
+Allocation Graph
+       ↓
+Reconciliation Result
+       ↓
+Residual Observations
+       ↓
+Residual Intelligence
+
+The reconciliation result should eventually feed the existing residual intelligence layer.
+
+For this phase, implement the integration point, but do not redesign Phase 3.
+
+==================================================
+19. IMPORTANT FINANCIAL SAFETY
+==================================================
+
+The optimizer must NEVER:
+
+- modify financial events
+- modify bank balances
+- execute payouts
+- create accounting entries
+- approve settlements
+
+It only produces a reconciliation result and proposed allocations.
+
+==================================================
+FINAL VERIFICATION
+==================================================
+
+At the end:
+
+1. Run ALL tests.
+2. Report exact test count.
+3. Verify /health.
+4. Verify /docs.
+5. Run the ₹600 many-to-many example.
+6. Run the ₹450 partial example.
+7. Run duplicate external test.
+8. Run currency isolation test.
+9. Show one complete ReconciliationResult.
+10. Confirm Phase 5 was NOT started.
+
+STOP after Phase 4.

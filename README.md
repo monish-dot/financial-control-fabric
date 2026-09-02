@@ -85,6 +85,34 @@ Synthetic residual populations can be loaded with:
 python -m scripts.seed_residuals
 ```
 
+## Constrained reconciliation engine
+
+Phase 4 adds deterministic many-to-many settlement reconciliation under
+`backend/reconciliation/`. It uses Decimal amounts converted to integer minor
+units for OR-Tools CP-SAT optimization, with a deterministic greedy fallback
+when OR-Tools is unavailable.
+
+The optimizer supports:
+
+- one-to-one, many-to-one, one-to-many, and many-to-many allocations
+- internal and external capacity limits
+- currency isolation with no implicit FX conversion
+- configurable timestamp windows
+- normalized reference matching
+- entity, account, merchant, and partner compatibility constraints
+- explainable compatibility scores and allocation reasons
+- deterministic repeated results and reconciliation IDs
+
+The reconciliation layer only proposes allocations. It never modifies
+financial events, balances, payouts, accounting entries, or settlement
+approval state. A result can be adapted into the existing residual model with
+the service integration point when a caller explicitly chooses to persist it.
+
+The reconciliation API is:
+
+- `POST /reconciliation/settlement`
+- `GET /reconciliation/{reconciliation_id}`
+
 ## Synthetic seed data
 
 The seed script creates 30 deterministic synthetic INR events across every
@@ -103,5 +131,4 @@ pytest
 ```
 
 AI investigation, cryptographic proofs, frontends, external APIs, and
-transaction-level reconciliation optimization are intentionally not
-implemented yet.
+autonomous financial actions are intentionally not implemented yet.
