@@ -1,0 +1,221 @@
+PHASE 1 — CANONICAL FINANCIAL EVENT STORE
+
+Phase 0 is complete.
+
+Now implement ONLY Phase 1.
+
+PROJECT:
+Financial Control Fabric
+
+OBJECTIVE:
+
+Create a persistent SQLite event store for the canonical FinancialEvent model.
+
+The event store will become the source layer for all five future financial-control domains:
+
+1. Nodal / Escrow
+2. Multi-bank / Multi-partner Settlement
+3. Merchant Payout
+4. Revenue Recognition
+5. Cross-Entity Reconciliation
+
+IMPORTANT ARCHITECTURE RULE:
+
+Do NOT implement reconciliation yet.
+
+Do NOT implement anomaly detection yet.
+
+Do NOT implement the AI agent yet.
+
+Do NOT implement cryptographic proofs yet.
+
+Do NOT build a frontend yet.
+
+Do NOT add external APIs.
+
+We are building the deterministic financial data foundation first.
+
+TECH STACK:
+
+- Python
+- FastAPI
+- Pydantic
+- SQLite
+- SQLAlchemy
+- Decimal for monetary calculations
+
+DATABASE:
+
+Create a SQLite database:
+
+data/financial_control.db
+
+Create a table:
+
+financial_events
+
+Persist every field from the existing canonical FinancialEvent model.
+
+Use appropriate database types.
+
+IMPORTANT MONEY RULE:
+
+Never use floating-point numbers for financial amounts.
+
+Amounts must be stored/retrieved safely using Decimal-compatible representation.
+
+Do not perform financial calculations using float.
+
+REQUIRED OPERATIONS:
+
+Create a repository/service layer for FinancialEvent:
+
+1. create_event(event)
+2. get_event(event_id)
+3. list_events()
+4. list_events_by_type(event_type)
+5. list_events_by_entity(entity_id)
+6. list_events_by_account(account_id)
+7. list_events_by_merchant(merchant_id)
+
+API ENDPOINTS:
+
+POST /events
+
+Create a financial event.
+
+GET /events/{event_id}
+
+Retrieve one event.
+
+GET /events
+
+List events.
+
+Support optional filters:
+
+event_type
+entity_id
+account_id
+merchant_id
+
+Add pagination:
+
+limit
+offset
+
+Do not create arbitrary SQL endpoints.
+
+VALIDATION:
+
+- event_id must be unique
+- amount must be valid Decimal
+- currency must be a valid 3-letter uppercase currency code
+- event_type must use the existing supported event types
+- timestamps must be valid
+- reject malformed events with clear validation errors
+
+IDEMPOTENCY:
+
+If an event with the same event_id is submitted twice, do NOT create a duplicate.
+
+Return a clear response indicating that the event already exists.
+
+TEST DATA:
+
+Create a small deterministic seed script.
+
+Create approximately 30 synthetic financial events across multiple event types.
+
+Include:
+
+PAYMENT
+REFUND
+PAYOUT
+SETTLEMENT
+FEE
+TAX
+ADJUSTMENT
+BANK_CREDIT
+BANK_DEBIT
+JOURNAL_ENTRY
+REVENUE_RECOGNITION
+INTERCOMPANY_TRANSFER
+
+Use INR for the initial dataset.
+
+The data must be synthetic.
+
+Do NOT use real customer or financial information.
+
+TESTS:
+
+Add unit/integration tests covering:
+
+1. create event
+2. retrieve event
+3. list events
+4. event type filtering
+5. entity filtering
+6. account filtering
+7. merchant filtering
+8. pagination
+9. duplicate event_id rejection/idempotency
+10. invalid Decimal amount
+11. invalid currency
+12. persistence after database restart
+
+HEALTH CHECK:
+
+Keep:
+
+GET /health
+
+working.
+
+DOCUMENTATION:
+
+Update the FastAPI documentation automatically through OpenAPI.
+
+Add a short README section explaining:
+
+- canonical event model
+- SQLite event store
+- API endpoints
+- synthetic seed data
+- how to run tests
+
+IMPORTANT:
+
+Keep the implementation modular.
+
+Do not put database logic directly inside API route functions.
+
+Use a structure similar to:
+
+backend/
+    api/
+    models/
+    controls/
+    reconciliation/
+    anomaly/
+    agent/
+    proof/
+    repositories/
+    database/
+
+Do not modify the existing FinancialEvent semantics unless necessary.
+
+At the end:
+
+1. Run all tests.
+2. Report the number of tests passed.
+3. Start FastAPI successfully.
+4. Verify:
+   GET /health
+   GET /docs
+   POST /events
+   GET /events
+5. Do not proceed to Phase 2 automatically.
+
+STOP after Phase 1.

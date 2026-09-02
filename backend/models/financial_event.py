@@ -61,9 +61,8 @@ class FinancialEvent(BaseModel):
     @field_validator("currency")
     @classmethod
     def currency_must_be_uppercase(cls, value: str) -> str:
-        """Keep the canonical currency representation normalized."""
+        """Require the canonical three-letter uppercase representation."""
 
-        normalized = value.upper()
-        if not normalized.isalpha():
-            raise ValueError("currency must contain only alphabetic characters")
-        return normalized
+        if not value.isalpha() or not value.isupper():
+            raise ValueError("currency must be a three-letter uppercase code")
+        return value

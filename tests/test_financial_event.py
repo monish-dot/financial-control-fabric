@@ -23,7 +23,7 @@ def valid_event_data() -> dict[str, object]:
         "merchant_id": "merchant_001",
         "partner_id": "partner_001",
         "amount": "1250.105",
-        "currency": "usd",
+        "currency": "USD",
         "event_timestamp": timestamp,
         "effective_timestamp": timestamp,
         "status": "posted",
@@ -85,6 +85,14 @@ def test_financial_event_rejects_extra_fields() -> None:
 def test_financial_event_rejects_invalid_currency() -> None:
     payload = valid_event_data()
     payload["currency"] = "US1"
+
+    with pytest.raises(ValidationError):
+        FinancialEvent.model_validate(payload)
+
+
+def test_financial_event_rejects_lowercase_currency() -> None:
+    payload = valid_event_data()
+    payload["currency"] = "usd"
 
     with pytest.raises(ValidationError):
         FinancialEvent.model_validate(payload)
