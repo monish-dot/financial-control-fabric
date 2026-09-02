@@ -1,0 +1,135 @@
+You are helping me build a production-oriented prototype called "Financial Control Fabric".
+
+IMPORTANT:
+Do NOT build the entire application at once.
+Do NOT invent financial logic.
+Do NOT add unnecessary features.
+We will build the system incrementally.
+
+PROJECT OBJECTIVE
+
+Build an AI-powered financial control platform that operates across five domains:
+
+1. Nodal / Escrow reconciliation
+2. Multi-bank / Multi-partner settlement reconciliation
+3. Merchant payout reconciliation
+4. Revenue recognition reconciliation
+5. Cross-entity reconciliation
+
+The core technical architecture is:
+
+Financial Events
+→ Canonical Event Model
+→ Domain Control Engine
+→ Expected Financial State
+→ Residual Calculation
+→ Residual Distribution Analysis
+→ Anomaly Detection
+→ AI Investigation Agent
+→ Evidence Verification
+→ Controller Recommendation
+→ Cryptographic Proof
+→ Re-validation
+
+CORE DESIGN PRINCIPLE
+
+This is NOT a simple transaction matching system.
+
+The system should determine whether a financial control invariant holds.
+
+Each domain has a domain-specific invariant, but all domains produce a common residual representation.
+
+The anomaly engine should analyze the DISTRIBUTION and evolution of residuals, rather than treating every transaction mismatch independently.
+
+The AI agent should investigate detected control anomalies using tools and evidence.
+
+LLMs must NOT be responsible for financial arithmetic.
+All monetary calculations must use deterministic code with Decimal arithmetic.
+
+The AI agent must NOT directly modify financial records.
+It can investigate and recommend actions.
+Actual resolution requires explicit controller approval.
+
+TECHNICAL PRINCIPLES
+
+- Python
+- FastAPI
+- Pydantic
+- SQLite initially
+- Pandas / NumPy / SciPy
+- scikit-learn
+- OR-Tools for constrained reconciliation
+- Modular architecture
+- Strong typing
+- Unit tests
+- Deterministic financial calculations
+- Auditability
+- No real financial data
+- Use synthetic data for development
+
+FIRST TASK ONLY
+
+Do NOT build the agent yet.
+
+Create the initial project structure:
+
+backend/
+    api/
+    models/
+    controls/
+    reconciliation/
+    anomaly/
+    agent/
+    proof/
+
+data/
+tests/
+
+Create a minimal FastAPI application with a health endpoint.
+
+Create Pydantic models for a canonical FinancialEvent.
+
+FinancialEvent should support at least:
+
+event_id
+event_type
+source_system
+source_id
+entity_id
+account_id
+merchant_id
+partner_id
+amount
+currency
+event_timestamp
+effective_timestamp
+status
+parent_event_id
+metadata
+
+Event types should support:
+
+PAYMENT
+REFUND
+PAYOUT
+SETTLEMENT
+FEE
+TAX
+ADJUSTMENT
+BANK_CREDIT
+BANK_DEBIT
+JOURNAL_ENTRY
+REVENUE_RECOGNITION
+INTERCOMPANY_TRANSFER
+
+Use Decimal for monetary amounts.
+
+Create unit tests for the FinancialEvent model.
+
+Do not implement reconciliation logic yet.
+
+Do not implement AI yet.
+
+Do not implement cryptographic proofs yet.
+
+At the end, make sure the FastAPI application starts successfully.
