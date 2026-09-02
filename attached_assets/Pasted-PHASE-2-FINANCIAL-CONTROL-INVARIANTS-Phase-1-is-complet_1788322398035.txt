@@ -1,0 +1,422 @@
+PHASE 2 — FINANCIAL CONTROL INVARIANTS
+
+Phase 1 is complete.
+
+31 tests passed and the SQLite financial event store is working.
+
+Now implement ONLY Phase 2.
+
+Do NOT implement:
+- AI agent
+- LLM integration
+- anomaly detection
+- residual distribution analysis
+- cryptographic proof
+- frontend/dashboard
+- external APIs
+
+The purpose of this phase is to create a deterministic Financial Control Kernel.
+
+CORE IDEA:
+
+The system must determine whether financial control invariants hold.
+
+Every control must calculate:
+
+EXPECTED STATE
+ACTUAL STATE
+RESIDUAL
+CONTROL STATUS
+
+Where:
+
+residual = actual_state - expected_state
+
+Use Decimal arithmetic everywhere.
+
+Never use float for financial calculations.
+
+--------------------------------------------------
+1. CONTROL RESULT MODEL
+--------------------------------------------------
+
+Create a reusable ControlResult model containing at least:
+
+control_id
+domain
+entity_id
+period_start
+period_end
+expected_amount
+actual_amount
+residual_amount
+currency
+status
+tolerance
+explanation
+metadata
+
+Statuses:
+
+PASS
+FAIL
+WARNING
+
+Do not use an LLM to determine status.
+
+Status must be determined deterministically.
+
+--------------------------------------------------
+2. NODAL / ESCROW CONTROL
+--------------------------------------------------
+
+Implement a nodal/escrow balance invariant:
+
+Opening Balance
++ Collections
++ Valid Adjustments
+- Merchant Payouts
+- Refunds
+- Permitted Deductions
+= Expected Closing Balance
+
+Then compare:
+
+Expected Closing Balance
+vs
+Actual Bank Balance
+
+Residual:
+
+actual_closing_balance - expected_closing_balance
+
+The control must identify whether the invariant passes.
+
+Use FinancialEvent types:
+
+PAYMENT
+REFUND
+PAYOUT
+ADJUSTMENT
+BANK_CREDIT
+BANK_DEBIT
+
+Create:
+
+NodalEscrowControl
+
+Do not assume every BANK_CREDIT or BANK_DEBIT belongs to the same account.
+
+Filter by account_id and period.
+
+--------------------------------------------------
+3. MULTI-BANK / MULTI-PARTNER SETTLEMENT CONTROL
+--------------------------------------------------
+
+Implement a deterministic settlement obligation control.
+
+Conceptually:
+
+Internal Settlement Obligations
+=
+Bank/Partner Settlement Confirmations
++
+Valid Timing Differences
++
+Valid Adjustments
+
+Support many-to-many relationships.
+
+Do NOT implement naive one-to-one matching.
+
+For this phase, calculate aggregate expected and actual settlement amounts by:
+
+entity
+partner
+account
+period
+currency
+
+Create:
+
+SettlementControl
+
+The architecture must allow a later reconciliation optimizer to perform transaction-level constrained matching.
+
+Do not implement the optimizer yet.
+
+--------------------------------------------------
+4. MERCHANT PAYOUT CONTROL
+--------------------------------------------------
+
+Implement:
+
+Merchant Entitlement
+- Fees
+- Taxes
+- Refunds
+- Adjustments
+=
+Expected Merchant Payout
+
+Compare expected payout with actual PAYOUT events.
+
+Use:
+
+PAYMENT
+REFUND
+FEE
+TAX
+ADJUSTMENT
+PAYOUT
+
+Create:
+
+MerchantPayoutControl
+
+The control must support merchant_id and period filtering.
+
+--------------------------------------------------
+5. REVENUE RECOGNITION CONTROL
+--------------------------------------------------
+
+Implement a deterministic revenue recognition control.
+
+IMPORTANT:
+
+Cash received is NOT automatically recognized revenue.
+
+For this prototype, compare:
+
+Expected Recognized Revenue
+vs
+Recorded REVENUE_RECOGNITION events.
+
+Expected recognized revenue should be supplied through a deterministic control input/model representing the applicable recognition schedule.
+
+Create:
+
+RevenueRecognitionControl
+
+Do not use an LLM to decide accounting treatment.
+
+Do not implement complex accounting standards yet.
+
+The architecture should allow recognition rules to be added later.
+
+--------------------------------------------------
+6. CROSS-ENTITY CONTROL
+--------------------------------------------------
+
+Implement intercompany reconciliation.
+
+For an intercompany transfer:
+
+Entity A receivable
+should reconcile with
+Entity B payable / corresponding transfer.
+
+Use:
+
+INTERCOMPANY_TRANSFER
+JOURNAL_ENTRY
+
+Create:
+
+CrossEntityControl
+
+Support:
+
+source entity
+destination entity
+period
+currency
+
+Calculate the residual between the two sides.
+
+--------------------------------------------------
+7. COMMON CONTROL INTERFACE
+--------------------------------------------------
+
+Create a common interface/protocol:
+
+FinancialControl
+
+Every control must expose something equivalent to:
+
+evaluate(events, context) -> ControlResult
+
+The five controls must implement this interface.
+
+For example:
+
+NodalEscrowControl
+SettlementControl
+MerchantPayoutControl
+RevenueRecognitionControl
+CrossEntityControl
+
+--------------------------------------------------
+8. CONTROL REGISTRY
+--------------------------------------------------
+
+Create a ControlRegistry that can register and retrieve controls by domain.
+
+Example domains:
+
+NODAL_ESCROW
+SETTLEMENT
+MERCHANT_PAYOUT
+REVENUE_RECOGNITION
+CROSS_ENTITY
+
+The registry should make it possible for the future AI Finance Controller to dynamically select the appropriate control.
+
+--------------------------------------------------
+9. CONTROL TOLERANCES
+--------------------------------------------------
+
+Create a deterministic tolerance configuration.
+
+Example:
+
+exact financial balance:
+tolerance = 0.00
+
+Allow the tolerance to be passed through control context rather than hard-coded throughout the code.
+
+Do not hide mismatches by using large tolerances.
+
+--------------------------------------------------
+10. TEST DATA
+--------------------------------------------------
+
+Expand the synthetic dataset.
+
+Create deterministic scenarios for ALL five domains.
+
+Include:
+
+A. PASSING CASES
+
+B. MISSING TRANSACTION
+
+C. DUPLICATE TRANSACTION
+
+D. FEE DIFFERENCE
+
+E. REFUND DIFFERENCE
+
+F. TIMING DIFFERENCE
+
+G. BANK BALANCE DIFFERENCE
+
+H. CROSS-ENTITY MISMATCH
+
+I. REVENUE RECOGNITION TIMING MISMATCH
+
+Each scenario should have known expected results.
+
+The dataset must remain synthetic.
+
+--------------------------------------------------
+11. TESTS
+--------------------------------------------------
+
+Create tests for:
+
+1. Nodal control PASS
+2. Nodal control FAIL
+3. Settlement control PASS
+4. Settlement control FAIL
+5. Merchant payout PASS
+6. Merchant payout FAIL
+7. Revenue recognition PASS
+8. Revenue recognition FAIL
+9. Cross-entity PASS
+10. Cross-entity FAIL
+11. Decimal arithmetic
+12. Tolerance handling
+13. Control registry
+14. Empty event set
+15. Multiple currencies should not be silently aggregated
+
+IMPORTANT:
+
+Never aggregate different currencies together.
+
+--------------------------------------------------
+12. API
+--------------------------------------------------
+
+Add read-only control evaluation endpoints.
+
+Examples:
+
+GET /controls
+
+GET /controls/{domain}
+
+POST /controls/evaluate/{domain}
+
+The evaluation endpoint must accept a control context/input and return ControlResult.
+
+Do not allow these endpoints to modify financial events.
+
+--------------------------------------------------
+13. ARCHITECTURE
+--------------------------------------------------
+
+Keep the architecture modular:
+
+backend/
+    controls/
+        base.py
+        models.py
+        registry.py
+        nodal_escrow.py
+        settlement.py
+        merchant_payout.py
+        revenue_recognition.py
+        cross_entity.py
+
+    models/
+    repositories/
+    database/
+    api/
+
+The control logic must not be embedded inside FastAPI route functions.
+
+--------------------------------------------------
+14. IMPORTANT FINANCIAL SAFETY RULE
+--------------------------------------------------
+
+Financial arithmetic must be deterministic.
+
+The LLM/AI layer will be added later only for:
+
+- investigation
+- hypothesis generation
+- evidence retrieval
+- explanation
+- recommendation
+
+The LLM must never become the source of financial truth.
+
+--------------------------------------------------
+FINAL VERIFICATION
+--------------------------------------------------
+
+At the end:
+
+1. Run ALL tests.
+2. Report the exact number of tests passed.
+3. Verify /health.
+4. Verify /docs.
+5. Verify at least one PASS control.
+6. Verify at least one FAIL control.
+7. Show one example ControlResult.
+
+STOP after Phase 2.
+
+Do NOT automatically start Phase 3.

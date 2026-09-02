@@ -6,8 +6,7 @@ Production-oriented prototype foundation for deterministic financial controls.
 
 `FinancialEvent` is the shared Pydantic contract for normalized financial
 events. It uses `Decimal` for amounts and supports the event types needed by
-the future control domains. Domain-specific reconciliation and accounting
-logic are intentionally not part of this phase.
+the five control domains.
 
 ## SQLite event store
 
@@ -30,6 +29,34 @@ uvicorn backend.api.main:app --host 0.0.0.0 --port 5000
 
 FastAPI publishes the OpenAPI documentation at `/docs`.
 
+## Financial control kernel
+
+Phase 2 adds five deterministic controls. Each implements the same
+`evaluate(events, context)` interface and returns a `ControlResult` containing
+expected amount, actual amount, residual, tolerance, status, explanation, and
+metadata:
+
+- `NODAL_ESCROW`
+- `SETTLEMENT`
+- `MERCHANT_PAYOUT`
+- `REVENUE_RECOGNITION`
+- `CROSS_ENTITY`
+
+Financial arithmetic uses `Decimal` only. A control rejects mixed currencies
+instead of silently aggregating them. Control evaluation is read-only.
+
+The control API is:
+
+- `GET /controls` — list registered controls
+- `GET /controls/{domain}` — inspect one control definition
+- `POST /controls/evaluate/{domain}` — evaluate a control using a typed
+  context and optional event collection
+
+If `events` is omitted from an evaluation request, the endpoint evaluates the
+events currently in the SQLite event store. Revenue recognition requires an
+explicit expected recognition amount; cash events are not treated as
+recognized revenue automatically.
+
 ## Synthetic seed data
 
 The seed script creates 30 deterministic synthetic INR events across every
@@ -47,5 +74,6 @@ Running it again is safe because event creation is idempotent.
 pytest
 ```
 
-Reconciliation, anomaly analysis, AI investigation, cryptographic proofs,
-frontends, and external APIs are intentionally not implemented yet.
+Anomaly analysis, AI investigation, cryptographic proofs, frontends, external
+APIs, and transaction-level reconciliation optimization are intentionally not
+implemented yet.
