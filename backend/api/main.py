@@ -5,8 +5,6 @@ from typing import Any
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, ValidationError
 
-from backend.controls.cross_entity import CrossEntityControl
-from backend.controls.merchant_payout import MerchantPayoutControl
 from backend.controls.models import (
     ControlContext,
     ControlDomain,
@@ -17,10 +15,20 @@ from backend.controls.models import (
     RevenueRecognitionContext,
     SettlementContext,
 )
-from backend.controls.nodal_escrow import NodalEscrowControl
 from backend.controls.registry import ControlRegistry, build_default_registry
-from backend.controls.revenue_recognition import RevenueRecognitionControl
-from backend.controls.settlement import SettlementControl
+from backend.anomaly.baseline import ResidualBaselineManager, ResidualBaselineStore
+from backend.anomaly.distribution import (
+    ResidualDistributionAnalyzer,
+    ensure_single_currency,
+)
+from backend.anomaly.engine import ResidualIntelligenceEngine
+from backend.anomaly.residual_models import (
+    ResidualAnalysis,
+    ResidualBaseline,
+    ResidualDistributionStatistics,
+    ResidualObservation,
+)
+from backend.anomaly.residual_store import ResidualStore
 from backend.database.connection import Database
 from backend.models.financial_event import FinancialEvent
 from backend.repositories.financial_event import FinancialEventRepository
@@ -49,6 +57,23 @@ class ControlEvaluationRequest(BaseModel):
     context: dict[str, Any] = Field(default_factory=dict)
 
 
+class ResidualAnalysisRequest(BaseModel):
+    """Read-only residual analysis input."""
+
+    residuals: list[ResidualObservation] | None = None
+    baseline_residuals: list[ResidualObservation] | None = None
+    baseline_id: str | None = None
+    rolling_window: int = Field(default=5, ge=1, le=1000)
+    currency: str | None = None
+
+
+class ResidualDistributionResponse(BaseModel):
+    """Statistics for one residual domain population."""
+
+    domain: ControlDomain
+    statistics: ResidualDistributionStatistics
+
+
 CONTEXT_MODELS: dict[ControlDomain, type[ControlContext]] = {
     ControlDomain.NODAL_ESCROW: NodalEscrowContext,
     ControlDomain.SETTLEMENT: SettlementContext,
@@ -72,6 +97,12 @@ def create_app(database: Database | None = None) -> FastAPI:
     database = database or Database()
     database.initialize()
     repository = FinancialEventRepository(database.session_factory)
+    residual_store = ResidualStore(database.session_factory)
+    baseline_manager = ResidualBaselineManager(
+        ResidualBaselineStore(database.session_factory)
+    )
+    residual_engine = ResidualIntelligenceEngine()
+    distribution_analyzer = ResidualDistributionAnalyzer()
 
     app = FastAPI(
         title="Financial Control Fabric",
@@ -84,6 +115,18 @@ def create_app(database: Database | None = None) -> FastAPI:
 
     def get_registry() -> ControlRegistry:
         return registry
+
+    def get_residual_store() -> ResidualStore:
+        return residual_store
+
+    def get_baseline_manager() -> ResidualBaselineManager:
+        return baseline_manager
+
+    def get_residual_engine() -> ResidualIntelligenceEngine:
+        return residual_engine
+
+    def get_distribution_analyzer() -> ResidualDistributionAnalyzer:
+        return distribution_analyzer
 
     registry = build_default_registry()
 
@@ -219,6 +262,171 @@ def create_app(database: Database | None = None) -> FastAPI:
             control_id=control.control_id,
             description=CONTROL_DESCRIPTIONS[normalized_domain],
         )
+
+    @app.get("/residuals", response_model=list[ResidualObservation])
+    def list_residuals(
+        domain: str | None = Query(default=None),
+        entity_id: str | None = Query(default=None),
+        account_id: str | None = Query(default=None),
+        merchant_id: str | None = Query(default=None),
+        partner_id: str | None = Query(default=None),
+        currency: str | None = Query(default=None),
+        limit: int = Query(default=100, ge=1, le=1000),
+        offset: int = Query(default=0, ge=0),
+        store: ResidualStore = Depends(get_residual_store),
+    ) -> list[ResidualObservation]:
+        """List persisted residual observations without modifying them."""
+
+        try:
+            normalized_domain = ControlDomain(domain.upper()) if domain else None
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"unknown control domain '{domain}'",
+            ) from error
+        return store.list_residuals(
+            domain=normalized_domain,
+            entity_id=entity_id,
+            account_id=account_id,
+            merchant_id=merchant_id,
+            partner_id=partner_id,
+            currency=currency,
+            limit=limit,
+            offset=offset,
+        )
+
+    @app.get("/residuals/distribution/{domain}", response_model=ResidualDistributionResponse)
+    def residual_distribution(
+        domain: str,
+        currency: str | None = Query(default=None),
+        entity_id: str | None = Query(default=None),
+        account_id: str | None = Query(default=None),
+        store: ResidualStore = Depends(get_residual_store),
+        analyzer: ResidualDistributionAnalyzer = Depends(get_distribution_analyzer),
+    ) -> ResidualDistributionResponse:
+        """Return residual population statistics for one domain."""
+
+        try:
+            normalized_domain = ControlDomain(domain.upper())
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"control domain '{domain}' not found",
+            ) from error
+        observations = store.list_residuals(
+            domain=normalized_domain,
+            currency=currency,
+            entity_id=entity_id,
+            account_id=account_id,
+        )
+        try:
+            ensure_single_currency(observations, currency)
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(error),
+            ) from error
+        return ResidualDistributionResponse(
+            domain=normalized_domain,
+            statistics=analyzer.analyze(observations),
+        )
+
+    @app.get("/residuals/baseline/{domain}", response_model=ResidualBaseline)
+    def get_residual_baseline(
+        domain: str,
+        entity_id: str | None = Query(default=None),
+        account_id: str | None = Query(default=None),
+        currency: str | None = Query(default=None),
+        manager: ResidualBaselineManager = Depends(get_baseline_manager),
+    ) -> ResidualBaseline:
+        """Return the latest persisted baseline for one domain and scope."""
+
+        try:
+            normalized_domain = ControlDomain(domain.upper())
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"control domain '{domain}' not found",
+            ) from error
+        baseline = manager.get_latest_baseline(
+            normalized_domain,
+            entity_id=entity_id,
+            account_id=account_id,
+            currency=currency,
+        )
+        if baseline is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"no baseline found for domain '{domain}'",
+            )
+        return baseline
+
+    @app.get("/residuals/{residual_id}", response_model=ResidualObservation)
+    def get_residual(
+        residual_id: str,
+        store: ResidualStore = Depends(get_residual_store),
+    ) -> ResidualObservation:
+        """Retrieve one persisted residual observation."""
+
+        residual = store.get_residual(residual_id)
+        if residual is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"residual '{residual_id}' not found",
+            )
+        return residual
+
+    @app.post("/residuals/analyze/{domain}", response_model=ResidualAnalysis)
+    def analyze_residuals(
+        domain: str,
+        request: ResidualAnalysisRequest,
+        store: ResidualStore = Depends(get_residual_store),
+        manager: ResidualBaselineManager = Depends(get_baseline_manager),
+        engine: ResidualIntelligenceEngine = Depends(get_residual_engine),
+    ) -> ResidualAnalysis:
+        """Analyze residual behavior without recording or changing observations."""
+
+        try:
+            normalized_domain = ControlDomain(domain.upper())
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"control domain '{domain}' not found",
+            ) from error
+
+        current = (
+            request.residuals
+            if request.residuals is not None
+            else store.list_residuals_by_domain(normalized_domain)
+        )
+        baseline = None
+        baseline_residuals = request.baseline_residuals
+        if request.baseline_id:
+            baseline = manager.get_baseline(request.baseline_id)
+            if baseline is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"baseline '{request.baseline_id}' not found",
+                )
+            if baseline.domain is not normalized_domain:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="baseline domain does not match analysis domain",
+                )
+
+        try:
+            return engine.analyze(
+                current,
+                baseline=baseline,
+                baseline_residuals=baseline_residuals,
+                rolling_window=request.rolling_window,
+                currency=request.currency,
+            )
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(error),
+            ) from error
 
     return app
 

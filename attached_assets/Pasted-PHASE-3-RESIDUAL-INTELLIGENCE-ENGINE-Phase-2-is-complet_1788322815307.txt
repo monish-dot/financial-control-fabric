@@ -1,0 +1,545 @@
+PHASE 3 — RESIDUAL INTELLIGENCE ENGINE
+
+Phase 2 is complete.
+
+47 tests passed.
+
+The deterministic Financial Control Kernel now evaluates five financial domains:
+
+1. Nodal / Escrow
+2. Multi-bank / Multi-partner Settlement
+3. Merchant Payout
+4. Revenue Recognition
+5. Cross-Entity
+
+Now implement ONLY Phase 3.
+
+IMPORTANT:
+
+Do NOT implement the AI/LLM agent yet.
+
+Do NOT implement cryptographic proofs yet.
+
+Do NOT build a frontend/dashboard yet.
+
+Do NOT add external financial APIs.
+
+Do NOT replace deterministic control logic.
+
+The purpose of this phase is to build the RESIDUAL INTELLIGENCE ENGINE.
+
+==================================================
+CORE INNOVATION
+==================================================
+
+Traditional reconciliation often asks:
+
+"Does this individual transaction match?"
+
+Our system additionally asks:
+
+"Has the population-level behavior of reconciliation residuals changed?"
+
+For every evaluated control:
+
+residual = actual_amount - expected_amount
+
+The system must preserve residuals as structured observations.
+
+A residual should not only contain an amount.
+
+Create a ResidualObservation model containing at least:
+
+residual_id
+control_id
+domain
+entity_id
+account_id
+merchant_id
+partner_id
+timestamp
+expected_amount
+actual_amount
+residual_amount
+currency
+status
+metadata
+
+Use Decimal for all monetary values.
+
+==================================================
+1. RESIDUAL COLLECTION
+==================================================
+
+Create a ResidualStore/service.
+
+It must support:
+
+record_residual()
+get_residual()
+list_residuals()
+list_residuals_by_domain()
+list_residuals_by_entity()
+list_residuals_by_account()
+list_residuals_by_merchant()
+list_residuals_by_period()
+
+Persist residual observations in SQLite.
+
+Do not modify the existing financial_events table.
+
+Create a separate table:
+
+residual_observations
+
+==================================================
+2. RESIDUAL VECTOR
+==================================================
+
+The system must support a future multi-dimensional residual representation.
+
+Create a ResidualVector model with fields such as:
+
+amount_difference
+timing_difference
+fee_difference
+tax_difference
+quantity_difference
+currency_difference
+
+Not every domain needs every dimension immediately.
+
+For Phase 3, amount_difference is mandatory.
+
+Keep the architecture extensible.
+
+==================================================
+3. POPULATION STATISTICS
+==================================================
+
+Implement a deterministic ResidualDistributionAnalyzer.
+
+Given a population of residuals, calculate:
+
+count
+zero_residual_ratio
+mean
+median
+standard_deviation
+minimum
+maximum
+p95
+p99
+absolute_mean
+absolute_median
+positive_ratio
+negative_ratio
+
+All monetary calculations must remain Decimal where appropriate.
+
+Use numerical libraries only for statistical calculations where necessary.
+
+Never convert monetary values into float for financial decisions.
+
+==================================================
+4. DISTRIBUTION SHIFT
+==================================================
+
+Implement methods to compare:
+
+baseline residual distribution
+
+against
+
+current residual distribution.
+
+The analyzer should calculate distribution-shift indicators.
+
+Implement at least:
+
+A. Kolmogorov-Smirnov statistic
+
+B. Wasserstein distance
+
+C. Population Stability Index (PSI)
+
+The system should gracefully handle small or empty populations.
+
+Do NOT automatically declare fraud.
+
+These metrics indicate behavioral change, not fraud.
+
+==================================================
+5. TEMPORAL DRIFT
+==================================================
+
+Residual behavior can change over time.
+
+Implement deterministic temporal analysis.
+
+Support:
+
+rolling mean
+rolling absolute residual mean
+rolling zero-residual ratio
+
+Also implement at least one sequential change detector:
+
+CUSUM
+
+or
+
+EWMA
+
+Prefer CUSUM if implementation remains simple and deterministic.
+
+The output should indicate whether the residual process appears stable or has experienced a change.
+
+==================================================
+6. RESIDUAL ANOMALY SCORE
+==================================================
+
+Create a ResidualAnomalyScore model.
+
+It should contain:
+
+score
+severity
+signals
+distribution_metrics
+temporal_metrics
+explanation
+
+Severity:
+
+NORMAL
+WATCH
+ANOMALOUS
+CRITICAL
+
+IMPORTANT:
+
+Do NOT use an arbitrary single threshold such as:
+
+if residual > 100:
+    anomaly
+
+Instead combine multiple signals.
+
+Example signals:
+
+- large change in mean residual
+- increase in residual variance
+- reduction in zero-residual ratio
+- KS distribution shift
+- Wasserstein distribution shift
+- PSI shift
+- CUSUM change
+- persistent positive/negative residual bias
+
+The scoring mechanism must be deterministic and explainable.
+
+Do not use an LLM.
+
+==================================================
+7. CROSS-DOMAIN RESIDUAL ANALYSIS
+==================================================
+
+The same residual intelligence engine must work across all five domains.
+
+Example:
+
+NODAL_ESCROW
+residual population
+
+MERCHANT_PAYOUT
+residual population
+
+SETTLEMENT
+residual population
+
+REVENUE_RECOGNITION
+residual population
+
+CROSS_ENTITY
+residual population
+
+The engine must NOT contain domain-specific anomaly logic.
+
+Domain-specific controls generate residuals.
+
+The residual intelligence engine analyzes their behavior.
+
+This separation is extremely important.
+
+==================================================
+8. BASELINE MANAGEMENT
+==================================================
+
+Create a simple baseline mechanism.
+
+A baseline represents the normal residual behavior for a:
+
+domain
+entity
+account
+period/window
+
+Create:
+
+ResidualBaseline
+
+containing:
+
+baseline_id
+domain
+entity_id
+account_id
+currency
+window_start
+window_end
+sample_count
+statistics
+created_at
+
+Support:
+
+create_baseline()
+get_baseline()
+compare_to_baseline()
+
+Do not implement ML model training yet.
+
+==================================================
+9. SYNTHETIC ANOMALY DATA
+==================================================
+
+Create deterministic synthetic residual populations.
+
+At least:
+
+CASE A — Stable population
+
+Example:
+
+0
+0
+0
+0
+1
+-1
+0
+0
+
+CASE B — Increasing variance
+
+Example:
+
+0
+1
+-1
+3
+-5
+8
+-13
+21
+
+CASE C — Persistent positive bias
+
+Example:
+
+10
+11
+9
+12
+10
+11
+13
+12
+
+CASE D — Distribution shift
+
+Baseline:
+
+0
+0
+0
+1
+-1
+0
+1
+
+Current:
+
+25
+30
+20
+35
+28
+32
+27
+
+CASE E — Timing-like residual pattern
+
+Small residuals that persist for a period and then disappear.
+
+CASE F — Domain-specific examples
+
+Create residual populations for all five domains.
+
+==================================================
+10. API ENDPOINTS
+==================================================
+
+Add read-only endpoints.
+
+GET /residuals
+
+GET /residuals/{residual_id}
+
+GET /residuals/distribution/{domain}
+
+GET /residuals/baseline/{domain}
+
+POST /residuals/analyze/{domain}
+
+The analysis endpoint should return:
+
+distribution statistics
+distribution shift metrics
+temporal metrics
+anomaly score
+severity
+explanation
+
+Do not modify financial events through these endpoints.
+
+==================================================
+11. TESTS
+==================================================
+
+Add tests for:
+
+1. residual persistence
+2. residual retrieval
+3. residual filtering
+4. zero residual population
+5. stable distribution
+6. mean calculation
+7. median calculation
+8. P95 calculation
+9. P99 calculation
+10. positive/negative bias detection
+11. variance increase
+12. KS distribution shift
+13. Wasserstein distance
+14. PSI
+15. temporal rolling statistics
+16. CUSUM/EWMA
+17. anomaly scoring
+18. severity classification
+19. baseline creation
+20. baseline comparison
+21. empty population handling
+22. multi-domain support
+23. multi-currency isolation
+
+==================================================
+12. FINANCIAL SAFETY
+==================================================
+
+Critical rule:
+
+The residual intelligence engine is an ANALYTICAL layer.
+
+It must NEVER:
+
+- modify financial events
+- modify balances
+- approve payouts
+- create accounting entries
+- declare fraud automatically
+
+Its role is:
+
+OBSERVE
+→ MEASURE
+→ DETECT CHANGE
+→ EXPLAIN SIGNALS
+
+The future AI controller will investigate the anomaly.
+
+==================================================
+13. ARCHITECTURE
+==================================================
+
+Use:
+
+backend/
+    anomaly/
+        residual_models.py
+        residual_store.py
+        distribution.py
+        drift.py
+        scoring.py
+        baseline.py
+
+Keep the existing:
+
+backend/controls/
+
+separate.
+
+Architecture:
+
+Financial Events
+      ↓
+Financial Controls
+      ↓
+Control Results
+      ↓
+Residual Observations
+      ↓
+Residual Intelligence Engine
+      ↓
+Distribution Analysis
+      ↓
+Temporal Drift
+      ↓
+Anomaly Score
+      ↓
+Future AI Investigation Agent
+
+==================================================
+14. IMPORTANT DESIGN PRINCIPLE
+==================================================
+
+Do not describe this as merely:
+
+"AI anomaly detection."
+
+The technical concept is:
+
+RESIDUAL DISTRIBUTION INTELLIGENCE
+
+The system detects changes in the statistical behavior of financial reconciliation residuals across populations and time.
+
+This will later become one of the central differentiators of the Financial Control Fabric.
+
+==================================================
+FINAL VERIFICATION
+==================================================
+
+At the end:
+
+1. Run ALL tests.
+2. Report exact number passed.
+3. Verify /health.
+4. Verify /docs.
+5. Run a stable residual population.
+6. Run an anomalous residual population.
+7. Show the resulting anomaly score.
+8. Demonstrate baseline vs current distribution comparison.
+9. Do NOT start Phase 4 automatically.
+
+STOP after Phase 3.

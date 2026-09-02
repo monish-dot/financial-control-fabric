@@ -57,6 +57,34 @@ events currently in the SQLite event store. Revenue recognition requires an
 explicit expected recognition amount; cash events are not treated as
 recognized revenue automatically.
 
+## Residual distribution intelligence
+
+Phase 3 preserves control outcomes as structured `ResidualObservation` records
+in the separate `residual_observations` table. The analytical layer provides:
+
+- Decimal-safe population statistics, including mean, median, p95, p99,
+  absolute statistics, and positive/negative ratios
+- KS, Wasserstein, and PSI distribution-shift metrics
+- Rolling residual statistics and deterministic CUSUM drift detection
+- Explainable multi-signal anomaly scores with `NORMAL`, `WATCH`, `ANOMALOUS`,
+  and `CRITICAL` severity levels
+- Persisted `ResidualBaseline` records for domain/entity/account windows
+
+Residual analysis never changes financial events, balances, payouts, or
+accounting entries. The read-only endpoints are:
+
+- `GET /residuals`
+- `GET /residuals/{residual_id}`
+- `GET /residuals/distribution/{domain}`
+- `GET /residuals/baseline/{domain}`
+- `POST /residuals/analyze/{domain}`
+
+Synthetic residual populations can be loaded with:
+
+```bash
+python -m scripts.seed_residuals
+```
+
 ## Synthetic seed data
 
 The seed script creates 30 deterministic synthetic INR events across every
@@ -74,6 +102,6 @@ Running it again is safe because event creation is idempotent.
 pytest
 ```
 
-Anomaly analysis, AI investigation, cryptographic proofs, frontends, external
-APIs, and transaction-level reconciliation optimization are intentionally not
+AI investigation, cryptographic proofs, frontends, external APIs, and
+transaction-level reconciliation optimization are intentionally not
 implemented yet.

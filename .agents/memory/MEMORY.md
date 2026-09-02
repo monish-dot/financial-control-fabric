@@ -1,0 +1,1 @@
+- [Residual baseline comparisons](residual-baseline-comparisons.md) — retain representative baseline samples when exact distribution-shift metrics must be recomputed later.
