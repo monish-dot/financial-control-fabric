@@ -265,7 +265,11 @@ class InvestigationReport(BaseModel):
     requires_human_approval: bool
     created_at: datetime
     audit_ids: list[str] = Field(default_factory=list)
+    proof_id: str | None = None
+    merkle_root: str | None = None
+    proof_status: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
 
 
 class ControllerAction(BaseModel):
@@ -345,3 +349,11 @@ class RevalidationRequest(BaseModel):
     new_control_result: ControlResult | None = None
     events: list[FinancialEvent] | None = None
     context: dict[str, Any] | None = None
+
+
+class AttachProofRequest(BaseModel):
+    """Request to attach a cryptographic control proof to a verified investigation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    proof_id: str = Field(min_length=1)
