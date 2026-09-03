@@ -10,6 +10,7 @@ from backend.agent.hypotheses import candidate_hypotheses
 from backend.agent.llm import DeterministicMockProvider, LLMProvider
 from backend.agent.models import (
     AgentState,
+    ApprovalStatus,
     AuditActor,
     ControllerAction,
     EvidenceItem,
@@ -57,13 +58,16 @@ class FinanceController:
         provider: LLMProvider | None = None,
         calculator: DeterministicCalculator | None = None,
         audit: AgentAuditTrail | None = None,
+        proof_service: Any = None,
     ) -> None:
         self._tools = ReadOnlyFinancialTools(repository)
         self._provider = provider or DeterministicMockProvider()
         self._calculator = calculator or DeterministicCalculator()
         self._verifier = HypothesisVerifier()
         self._audit = audit or AgentAuditTrail()
+        self._proof_service = proof_service
         self._records: dict[str, InvestigationRecord] = {}
+
 
     def investigate(self, request: InvestigationRequest) -> InvestigationReport:
         existing = self._records.get(request.investigation_id)
@@ -315,6 +319,53 @@ class FinanceController:
             output_summary=f"resolved={result.resolved}",
         )
         return result
+
+    def attach_proof(self, investigation_id: str, proof_id: str) -> InvestigationReport:
+        """Attach a cryptographic proof to a verified investigation."""
+
+        record = self._get(investigation_id)
+        if record.report.status is InvestigationStatus.INCONCLUSIVE:
+            raise ValueError("cannot attach proof to an inconclusive investigation")
+        if record.state_machine.state in {
+            AgentState.DETECTED,
+            AgentState.INVESTIGATING,
+            AgentState.EVIDENCE_COLLECTED,
+            AgentState.HYPOTHESES_TESTED,
+            AgentState.INCONCLUSIVE,
+        }:
+            raise ValueError("investigation must reach verified or recommendation stage before attaching a proof")
+        if record.action is not None and record.action.approval_status is ApprovalStatus.REJECTED:
+            raise ValueError("cannot attach proof to an investigation with rejected approval")
+
+        merkle_root = None
+        proof_status = "ATTACHED"
+        if self._proof_service is not None:
+            proof = self._proof_service.get_proof(proof_id)
+            if proof is None:
+                raise ValueError(f"proof '{proof_id}' not found")
+            verification = self._proof_service.verify_proof(proof_id)
+            if not verification.valid:
+                raise ValueError(f"referenced proof '{proof_id}' is invalid: {verification.failure_reason.value}")
+            merkle_root = proof.merkle_root
+            proof_status = "VALID"
+
+        record.report = record.report.model_copy(
+            update={
+                "proof_id": proof_id,
+                "merkle_root": merkle_root,
+                "proof_status": proof_status,
+            }
+        )
+        self._audit.record(
+            investigation_id,
+            timestamp=record.request.period_end,
+            actor=AuditActor.CONTROLLER,
+            action="PROOF_ATTACHED",
+            input_summary=f"proof_id={proof_id}",
+            output_summary=f"proof_status={proof_status}, merkle_root={merkle_root}",
+        )
+        return record.report
+
 
     def _retrieve_events(self, request: InvestigationRequest) -> list[FinancialEvent]:
         query = ToolQuery(

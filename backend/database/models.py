@@ -90,3 +90,33 @@ class ResidualBaselineRecord(Base):
     statistics_json: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     sample_residuals_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class ControlProofRecord(Base):
+    """SQLite representation of a tamper-evident control proof."""
+
+    __tablename__ = "control_proofs"
+    __table_args__ = (
+        Index("ix_control_proofs_control_id", "control_id"),
+        Index("ix_control_proofs_domain", "domain"),
+        Index("ix_control_proofs_entity_id", "entity_id"),
+        Index("ix_control_proofs_merkle_root", "merkle_root"),
+    )
+
+    proof_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    control_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    domain: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    period_start: Mapped[str] = mapped_column(Text, nullable=False)
+    period_end: Mapped[str] = mapped_column(Text, nullable=False)
+    event_count: Mapped[int] = mapped_column(nullable=False)
+    event_ids_json: Mapped[str] = mapped_column(Text, nullable=False)
+    merkle_root: Mapped[str] = mapped_column(String(64), nullable=False)
+    control_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    expected_amount: Mapped[str] = mapped_column(Text, nullable=False)
+    actual_amount: Mapped[str] = mapped_column(Text, nullable=False)
+    residual_amount: Mapped[str] = mapped_column(Text, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    context_json: Mapped[str] = mapped_column(Text, nullable=False)
+    generated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    metadata_json: Mapped[str] = mapped_column("metadata", Text, nullable=False)

@@ -33,6 +33,7 @@ from backend.agent.investigator import FinanceController
 from backend.agent.models import (
     AgentAuditEvent,
     ApprovalRequest,
+    AttachProofRequest,
     ControllerAction,
     EvidenceItem,
     InvestigationHypothesis,
@@ -41,6 +42,16 @@ from backend.agent.models import (
     RevalidationRequest,
     RevalidationResult,
 )
+from backend.proof.models import (
+    ControlProof,
+    MerkleMembershipProof,
+    ProofGenerationRequest,
+    ProofVerificationRequest,
+    ProofVerificationResult,
+    VerificationFailureReason,
+)
+from backend.proof.repository import ControlProofRepository
+from backend.proof.service import ControlProofService
 from backend.database.connection import Database
 from backend.models.financial_event import FinancialEvent
 from backend.repositories.financial_event import FinancialEventRepository
@@ -133,7 +144,12 @@ def create_app(database: Database | None = None) -> FastAPI:
     residual_engine = ResidualIntelligenceEngine()
     distribution_analyzer = ResidualDistributionAnalyzer()
     reconciliation_service = ReconciliationService()
-    finance_controller = FinanceController(repository)
+    registry = build_default_registry()
+    proof_repository = ControlProofRepository(database.session_factory)
+    proof_service = ControlProofService(
+        proof_repository, repository, registry
+    )
+    finance_controller = FinanceController(repository, proof_service=proof_service)
 
     app = FastAPI(
         title="Financial Control Fabric",
@@ -165,7 +181,9 @@ def create_app(database: Database | None = None) -> FastAPI:
     def get_finance_controller() -> FinanceController:
         return finance_controller
 
-    registry = build_default_registry()
+    def get_proof_service() -> ControlProofService:
+        return proof_service
+
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -651,6 +669,109 @@ def create_app(database: Database | None = None) -> FastAPI:
                 detail=str(error),
             ) from error
 
+    @app.post(
+        "/proofs/generate",
+        response_model=ControlProof,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def generate_proof(
+        request: ProofGenerationRequest,
+        service: ControlProofService = Depends(get_proof_service),
+        event_repository: FinancialEventRepository = Depends(get_repository),
+    ) -> ControlProof:
+        """Generate and persist a tamper-evident cryptographic control proof."""
+
+        events = request.events
+        if events is None:
+            events = event_repository.list_events()
+
+        try:
+            return service.generate_proof(
+                control_result=request.control_result,
+                context=request.context,
+                events=events,
+                proof_id=request.proof_id,
+            )
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(error),
+            ) from error
+
+    @app.get(
+        "/proofs/{proof_id}",
+        response_model=ControlProof,
+    )
+    def get_proof(
+        proof_id: str,
+        service: ControlProofService = Depends(get_proof_service),
+    ) -> ControlProof:
+        """Retrieve a stored control proof by its unique ID."""
+
+        proof = service.get_proof(proof_id)
+        if proof is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"proof '{proof_id}' not found",
+            )
+        return proof
+
+    @app.post(
+        "/proofs/{proof_id}/verify",
+        response_model=ProofVerificationResult,
+    )
+    def verify_proof(
+        proof_id: str,
+        request: ProofVerificationRequest,
+        service: ControlProofService = Depends(get_proof_service),
+    ) -> ProofVerificationResult:
+        """Verify proof Merkle root and recompute the control result via the kernel."""
+
+        result = service.verify_proof(proof_id, events=request.events)
+        if result.failure_reason == VerificationFailureReason.INVALID_PROOF and not result.valid:
+            if "not found" in result.metadata.get("detail", ""):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=result.metadata.get("detail", f"proof '{proof_id}' not found"),
+                )
+        return result
+
+    @app.get(
+        "/proofs/{proof_id}/events/{event_id}/membership",
+        response_model=MerkleMembershipProof,
+    )
+    def get_membership_proof(
+        proof_id: str,
+        event_id: str,
+        service: ControlProofService = Depends(get_proof_service),
+    ) -> MerkleMembershipProof:
+        """Retrieve a Merkle membership proof for an individual event."""
+
+        try:
+            return service.get_membership_proof(proof_id, event_id)
+        except ValueError as error:
+            detail = str(error)
+            code = status.HTTP_404_NOT_FOUND if "not found" in detail or "not present" in detail else status.HTTP_400_BAD_REQUEST
+            raise HTTPException(status_code=code, detail=detail) from error
+
+    @app.post(
+        "/agent/investigations/{investigation_id}/attach-proof",
+        response_model=InvestigationReport,
+    )
+    def attach_investigation_proof(
+        investigation_id: str,
+        request: AttachProofRequest,
+        controller: FinanceController = Depends(get_finance_controller),
+    ) -> InvestigationReport:
+        """Explicitly attach an independently generated cryptographic proof to an investigation."""
+
+        try:
+            return controller.attach_proof(investigation_id, request.proof_id)
+        except ValueError as error:
+            detail = str(error)
+            code = status.HTTP_404_NOT_FOUND if "not found" in detail else status.HTTP_400_BAD_REQUEST
+            raise HTTPException(status_code=code, detail=detail) from error
+
     return app
 
 app = create_app()
@@ -662,4 +783,8 @@ __all__ = [
     "FinancialEvent",
     "ReconciliationRequest",
     "InvestigationRequest",
+    "ControlProof",
+    "ProofVerificationResult",
+    "ProofGenerationRequest",
+    "ProofVerificationRequest",
 ]
