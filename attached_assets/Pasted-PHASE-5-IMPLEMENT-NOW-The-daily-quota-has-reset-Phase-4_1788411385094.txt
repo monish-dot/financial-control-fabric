@@ -1,0 +1,549 @@
+PHASE 5 — IMPLEMENT NOW
+
+The daily quota has reset.
+
+Phase 4 is complete with 92 passing tests.
+
+IMPORTANT:
+Implement Phase 5 now. Do not only inspect or plan.
+
+Existing architecture already contains:
+- canonical FinancialEvent store
+- five financial controls
+- residual intelligence engine
+- baseline/distribution analysis
+- OR-Tools reconciliation optimizer
+
+DO NOT modify or rewrite those systems unless required for integration.
+
+DO NOT start Phase 6.
+
+==================================================
+GOAL
+==================================================
+
+Build the AI Finance Controller as a guarded, evidence-grounded investigation service.
+
+The controller investigates financial control failures.
+
+It does NOT execute financial actions.
+
+Architecture:
+
+Control Result
+     ↓
+Residual / Anomaly
+     ↓
+Investigation
+     ↓
+Hypotheses
+     ↓
+Read-only Evidence Tools
+     ↓
+Deterministic Decimal Calculator
+     ↓
+Hypothesis Verification
+     ↓
+Root Cause
+     ↓
+Recommendation
+     ↓
+Human Approval
+     ↓
+Revalidation
+
+==================================================
+1. AGENT MODELS
+==================================================
+
+Create:
+
+InvestigationRequest
+InvestigationHypothesis
+EvidenceItem
+RootCauseFinding
+InvestigationReport
+ControllerAction
+RevalidationResult
+AgentAuditEvent
+
+Use Pydantic models.
+
+Every important conclusion must reference evidence IDs and, where applicable, calculation IDs.
+
+==================================================
+2. READ-ONLY TOOLS
+==================================================
+
+Create explicit tools:
+
+search_events
+get_event
+search_payments
+search_refunds
+search_payouts
+search_settlements
+search_bank_transactions
+search_adjustments
+search_revenue_records
+search_intercompany_records
+
+Rules:
+
+- read-only
+- structured input/output
+- strict validation
+- bounded result size
+- no arbitrary SQL
+- no database writes
+- no filesystem access
+- no arbitrary code execution
+
+==================================================
+3. DETERMINISTIC FINANCIAL CALCULATOR
+==================================================
+
+Create calculator functions:
+
+calculate_expected_balance
+calculate_merchant_entitlement
+calculate_settlement_total
+calculate_revenue_total
+calculate_intercompany_difference
+
+Use Decimal exclusively.
+
+Return:
+
+calculation_id
+formula
+inputs
+result
+currency
+calculation_trace
+
+The AI must never be trusted for authoritative monetary arithmetic.
+
+==================================================
+4. HYPOTHESIS ENGINE
+==================================================
+
+For each domain generate deterministic candidate hypotheses.
+
+NODAL_ESCROW:
+- missing bank credit
+- missing payout
+- duplicate payout
+- late refund
+- incorrect adjustment
+- bank posting delay
+- ingestion gap
+
+MERCHANT_PAYOUT:
+- missing payout
+- incorrect fee
+- incorrect tax
+- refund mismatch
+- duplicate payout
+- adjustment mismatch
+
+SETTLEMENT:
+- partial settlement
+- delayed settlement
+- duplicate settlement
+- missing partner confirmation
+- bank posting difference
+- fee/adjustment difference
+
+REVENUE_RECOGNITION:
+- recognition timing difference
+- missing recognition
+- duplicate recognition
+- recognition schedule mismatch
+
+CROSS_ENTITY:
+- missing intercompany side
+- timing mismatch
+- amount mismatch
+- duplicate journal
+- configuration issue
+
+Each hypothesis must be tested against retrieved evidence.
+
+Never mark a hypothesis SUPPORTED without evidence.
+
+==================================================
+5. RETRIEVAL VS REASONING
+==================================================
+
+Explicitly track:
+
+retrieval_status:
+SUCCESS
+NO_EVIDENCE
+INSUFFICIENT_EVIDENCE
+
+reasoning_status:
+CONSISTENT
+INCONCLUSIVE
+CONTRADICTED
+
+If evidence cannot be found:
+
+DO NOT invent an explanation.
+
+Return:
+
+root cause = UNKNOWN
+retrieval_status = INSUFFICIENT_EVIDENCE
+reasoning_status = INCONCLUSIVE
+
+==================================================
+6. ROOT CAUSE CLASSIFICATION
+==================================================
+
+Support:
+
+MISSING_EVENT
+DUPLICATE_EVENT
+TIMING_DIFFERENCE
+AMOUNT_DIFFERENCE
+FEE_DIFFERENCE
+TAX_DIFFERENCE
+ADJUSTMENT_DIFFERENCE
+BANK_POSTING_DELAY
+RECONCILIATION_ALLOCATION
+REVENUE_TIMING
+INTERCOMPANY_MISMATCH
+DATA_INGESTION
+UNKNOWN
+
+==================================================
+7. AGENT STATE MACHINE
+==================================================
+
+Implement:
+
+DETECTED
+INVESTIGATING
+EVIDENCE_COLLECTED
+HYPOTHESES_TESTED
+VERIFIED
+RECOMMENDATION_READY
+AWAITING_APPROVAL
+REVALIDATING
+RESOLVED
+INCONCLUSIVE
+
+Only valid state transitions may occur.
+
+==================================================
+8. LLM ABSTRACTION
+==================================================
+
+Create:
+
+LLMProvider
+
+with methods for:
+
+generate_hypotheses
+summarize_evidence
+generate_explanation
+
+Create a deterministic MockLLMProvider.
+
+The application MUST work without an API key.
+
+If no real LLM is configured, the deterministic investigation engine must still work.
+
+Do not hard-code the architecture around OpenAI or another provider.
+
+==================================================
+9. EVIDENCE-GROUNDED REPORT
+==================================================
+
+InvestigationReport must distinguish:
+
+FACT
+INFERENCE
+UNCERTAINTY
+
+Example:
+
+FACT:
+Settlement S100 is ₹9,000.
+
+FACT:
+Expected settlement is ₹10,000.
+
+INFERENCE:
+The evidence is consistent with a ₹1,000 settlement shortfall.
+
+UNCERTAINTY:
+No available event currently explains the missing ₹1,000.
+
+Every fact must reference evidence where possible.
+
+==================================================
+10. RECOMMENDATIONS
+==================================================
+
+Support:
+
+INVESTIGATE_FURTHER
+WAIT_FOR_SETTLEMENT
+REQUEST_PARTNER_CONFIRMATION
+REVIEW_FEE
+REVIEW_TAX
+REVIEW_REFUND
+REVIEW_DUPLICATE
+REVIEW_DATA_INGESTION
+ESCALATE_TO_CONTROLLER
+
+Financial-impacting recommendations must always require human approval.
+
+The agent can recommend.
+
+The agent cannot approve.
+
+==================================================
+11. HUMAN APPROVAL
+==================================================
+
+Create ControllerAction.
+
+All financial-impacting actions:
+
+requires_approval = true
+
+Agent cannot set:
+
+approval_status = APPROVED
+
+Approval endpoint only records explicit controller approval.
+
+Do NOT execute actual financial changes.
+
+==================================================
+12. REVALIDATION
+==================================================
+
+After approval, rerun the relevant deterministic control.
+
+Compare:
+
+previous residual
+new residual
+previous status
+new status
+
+Return whether the issue is resolved.
+
+No actual financial mutation is required in this phase.
+
+==================================================
+13. AUDIT TRAIL
+==================================================
+
+Record:
+
+audit_id
+investigation_id
+timestamp
+actor
+action
+tool_name
+input_summary
+output_summary
+evidence_ids
+calculation_ids
+
+Actors:
+
+SYSTEM
+AGENT
+CONTROLLER
+
+Do not store complete database dumps.
+
+==================================================
+14. API
+==================================================
+
+Implement:
+
+POST /agent/investigate
+
+GET /agent/investigations/{investigation_id}
+
+GET /agent/investigations/{investigation_id}/evidence
+
+GET /agent/investigations/{investigation_id}/hypotheses
+
+GET /agent/investigations/{investigation_id}/audit
+
+POST /agent/investigations/{investigation_id}/recommendation
+
+POST /agent/investigations/{investigation_id}/approve
+
+POST /agent/investigations/{investigation_id}/revalidate
+
+All APIs must enforce the state machine.
+
+==================================================
+15. END-TO-END SYNTHETIC TESTS
+==================================================
+
+Implement deterministic tests for:
+
+A. Missing payout
+
+Expected = ₹10,000
+Actual = ₹9,000
+
+Expected root cause:
+
+MISSING_EVENT
+
+B. Duplicate payout
+
+Expected = ₹10,000
+Actual = ₹11,000
+
+Expected root cause:
+
+DUPLICATE_EVENT
+
+C. Timing difference
+
+Internal = 10:00
+External = 10:23
+Tolerance = 30 minutes
+
+Expected:
+
+TIMING_DIFFERENCE
+
+D. Fee difference
+
+Expected fee = ₹100
+Recorded fee = ₹120
+
+Expected:
+
+FEE_DIFFERENCE
+
+E. Insufficient evidence
+
+Create an unexplained discrepancy.
+
+Expected:
+
+UNKNOWN
+retrieval_status = INSUFFICIENT_EVIDENCE
+reasoning_status = INCONCLUSIVE
+
+==================================================
+16. DETERMINISM
+==================================================
+
+Identical input must produce identical investigation output.
+
+No randomness.
+
+No nondeterministic ordering.
+
+Sort retrieved events deterministically.
+
+==================================================
+17. TEST SAFETY
+==================================================
+
+Verify the agent cannot:
+
+- modify financial events
+- modify balances
+- execute payouts
+- create accounting entries
+- approve financial actions
+- execute arbitrary SQL
+- execute arbitrary Python
+
+==================================================
+18. ARCHITECTURE
+==================================================
+
+Create:
+
+backend/agent/
+    models.py
+    state_machine.py
+    tools.py
+    calculator.py
+    hypotheses.py
+    investigator.py
+    evidence.py
+    verifier.py
+    recommendations.py
+    approvals.py
+    revalidation.py
+    audit.py
+    llm.py
+
+Keep the existing controls, anomaly, reconciliation, repositories, and database architecture intact.
+
+==================================================
+19. TESTING
+==================================================
+
+Run the existing 92 tests first.
+
+Then run all new Phase 5 tests.
+
+Do not break Phase 0–4 functionality.
+
+Report:
+
+existing tests passed
+new tests passed
+total tests passed
+
+==================================================
+FINAL VERIFICATION
+==================================================
+
+Verify:
+
+/health → 200
+/docs → 200
+
+Run all five investigation scenarios.
+
+Show one complete InvestigationReport containing:
+
+- control failure
+- anomaly information
+- hypotheses
+- evidence
+- calculations
+- root cause
+- confidence
+- retrieval status
+- reasoning status
+- recommendation
+- approval requirement
+- audit references
+
+Confirm:
+
+1. financial arithmetic uses Decimal
+2. agent tools are read-only
+3. agent cannot approve actions
+4. agent cannot modify financial events
+5. investigation is deterministic
+6. existing 92 tests still pass
+
+STOP after Phase 5.
+
+DO NOT START PHASE 6.

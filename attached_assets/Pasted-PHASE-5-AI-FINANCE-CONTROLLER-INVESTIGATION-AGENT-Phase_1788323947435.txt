@@ -1,0 +1,834 @@
+PHASE 5 — AI FINANCE CONTROLLER INVESTIGATION AGENT
+
+Phase 4 is complete.
+
+92 tests passed.
+
+The system now contains:
+
+- Canonical financial events
+- Five deterministic financial controls
+- Residual Intelligence Engine
+- Distribution-shift detection
+- Temporal drift detection
+- Constrained many-to-many reconciliation
+- OR-Tools optimizer
+
+Now implement ONLY Phase 5.
+
+IMPORTANT:
+
+This phase introduces the AI Finance Controller investigation layer.
+
+DO NOT implement:
+- autonomous financial modifications
+- automatic payouts
+- automatic refunds
+- automatic journal entries
+- automatic settlement approval
+- cryptographic proofs yet
+- frontend/dashboard yet
+- unrestricted SQL access
+- external banking integrations
+
+The AI must investigate and recommend.
+It must NOT become the source of financial truth.
+
+==================================================
+1. CONTROLLER RESPONSIBILITY
+==================================================
+
+Create an AI Finance Controller that operates over the existing deterministic control infrastructure.
+
+The controller workflow is:
+
+PERCEIVE
+→ HYPOTHESIZE
+→ INVESTIGATE
+→ CALCULATE
+→ VERIFY
+→ EXPLAIN
+→ RECOMMEND
+→ WAIT FOR APPROVAL
+→ REVALIDATE
+
+The controller receives:
+
+- control result
+- residual observations
+- anomaly score
+- distribution metrics
+- reconciliation results
+
+It then investigates why the control failed or why residual behavior changed.
+
+==================================================
+2. AGENT INPUT
+==================================================
+
+Create:
+
+InvestigationRequest
+
+Fields:
+
+investigation_id
+control_id
+domain
+entity_id
+account_id
+merchant_id
+partner_id
+period_start
+period_end
+control_result
+anomaly_score
+residual_summary
+reconciliation_summary
+metadata
+
+The request must be serializable.
+
+==================================================
+3. TOOL-BASED AGENT
+==================================================
+
+Do NOT give the LLM unrestricted database access.
+
+Create explicit read-only tools.
+
+Tools:
+
+search_events
+get_event
+search_payments
+search_refunds
+search_payouts
+search_settlements
+search_bank_transactions
+search_adjustments
+search_revenue_records
+search_intercompany_records
+
+Each tool must:
+
+- have a strict schema
+- validate inputs
+- perform read-only operations
+- return structured results
+- limit result size
+- never execute arbitrary SQL
+
+The agent may call only these tools.
+
+==================================================
+4. DETERMINISTIC CALCULATOR TOOL
+==================================================
+
+Create a financial calculation tool.
+
+The LLM can request a calculation.
+
+But Python/Decimal performs the calculation.
+
+Examples:
+
+calculate_expected_balance
+calculate_merchant_entitlement
+calculate_settlement_total
+calculate_revenue_total
+calculate_intercompany_difference
+
+Return:
+
+calculation_id
+formula
+inputs
+result
+currency
+calculation_trace
+
+The LLM must never perform authoritative monetary arithmetic itself.
+
+==================================================
+5. EVIDENCE OBJECT
+==================================================
+
+Create:
+
+EvidenceItem
+
+Fields:
+
+evidence_id
+source_type
+source_id
+field
+value
+timestamp
+relevance
+metadata
+
+Examples:
+
+PAYMENT
+REFUND
+PAYOUT
+BANK_TRANSACTION
+SETTLEMENT
+ADJUSTMENT
+JOURNAL_ENTRY
+
+Every important agent conclusion must reference evidence IDs.
+
+==================================================
+6. HYPOTHESIS MODEL
+==================================================
+
+Create:
+
+InvestigationHypothesis
+
+Fields:
+
+hypothesis_id
+description
+supporting_evidence
+contradicting_evidence
+calculation_ids
+confidence
+status
+
+Statuses:
+
+UNTESTED
+SUPPORTED
+WEAK
+REJECTED
+
+The agent must test hypotheses using tools.
+
+Do NOT allow the LLM to simply declare a hypothesis true.
+
+==================================================
+7. RETRIEVAL FAILURE VS REASONING FAILURE
+==================================================
+
+Explicitly separate:
+
+RETRIEVAL FAILURE
+
+from
+
+REASONING FAILURE
+
+For every investigation track:
+
+retrieval_status
+reasoning_status
+
+Possible retrieval statuses:
+
+SUCCESS
+NO_EVIDENCE
+INSUFFICIENT_EVIDENCE
+
+Possible reasoning statuses:
+
+CONSISTENT
+INCONCLUSIVE
+CONTRADICTED
+
+This is important.
+
+If the system cannot find the relevant transaction, it should not pretend the transaction does not exist.
+
+If evidence exists but hypotheses cannot explain the control failure, report reasoning uncertainty.
+
+==================================================
+8. INVESTIGATION STRATEGY
+==================================================
+
+Given a failed control, generate a small deterministic set of candidate hypotheses.
+
+Examples:
+
+NODAL_ESCROW:
+
+- missing bank credit
+- missing payout
+- duplicate payout
+- late refund
+- incorrect adjustment
+- bank posting delay
+- ingestion gap
+
+MERCHANT_PAYOUT:
+
+- missing payout
+- incorrect fee
+- incorrect tax
+- refund mismatch
+- duplicate payout
+- adjustment mismatch
+
+SETTLEMENT:
+
+- partial settlement
+- delayed settlement
+- duplicate settlement
+- missing partner confirmation
+- bank posting difference
+- fee/adjustment difference
+
+REVENUE_RECOGNITION:
+
+- recognition timing difference
+- missing recognition entry
+- duplicate recognition
+- contract schedule mismatch
+
+CROSS_ENTITY:
+
+- missing intercompany side
+- timing mismatch
+- amount mismatch
+- FX/configuration issue
+- duplicate journal
+
+Do not automatically label any issue as fraud.
+
+==================================================
+9. EVIDENCE-GROUNDED INVESTIGATION
+==================================================
+
+The investigation must follow:
+
+CONTROL FAILURE
+      ↓
+HYPOTHESES
+      ↓
+EVIDENCE RETRIEVAL
+      ↓
+DETERMINISTIC CALCULATIONS
+      ↓
+HYPOTHESIS TEST
+      ↓
+EVIDENCE VERIFICATION
+      ↓
+ROOT CAUSE
+
+Do not allow unsupported conclusions.
+
+Every supported hypothesis must have:
+
+- evidence IDs
+- calculation IDs where applicable
+- explanation
+
+==================================================
+10. ROOT CAUSE MODEL
+==================================================
+
+Create:
+
+RootCauseFinding
+
+Fields:
+
+finding_id
+category
+description
+confidence
+supporting_evidence
+calculation_ids
+retrieval_status
+reasoning_status
+impact_amount
+currency
+
+Categories:
+
+MISSING_EVENT
+DUPLICATE_EVENT
+TIMING_DIFFERENCE
+AMOUNT_DIFFERENCE
+FEE_DIFFERENCE
+TAX_DIFFERENCE
+ADJUSTMENT_DIFFERENCE
+BANK_POSTING_DELAY
+RECONCILIATION_ALLOCATION
+REVENUE_TIMING
+INTERCOMPANY_MISMATCH
+DATA_INGESTION
+UNKNOWN
+
+==================================================
+11. INVESTIGATION REPORT
+==================================================
+
+Create:
+
+InvestigationReport
+
+Fields:
+
+investigation_id
+control_id
+domain
+status
+summary
+root_causes
+evidence
+calculations
+anomaly_score
+recommended_action
+requires_human_approval
+created_at
+
+Statuses:
+
+INVESTIGATING
+COMPLETED
+INCONCLUSIVE
+
+The report should clearly distinguish:
+
+FACT
+INFERENCE
+UNCERTAINTY
+
+Example:
+
+FACT:
+Bank transaction BANK_102 was posted 23 minutes after the internal settlement.
+
+INFERENCE:
+The residual is consistent with a timing difference.
+
+UNCERTAINTY:
+No evidence currently confirms that this timing difference explains the entire residual.
+
+==================================================
+12. RECOMMENDATION ENGINE
+==================================================
+
+Create deterministic recommendation categories.
+
+Examples:
+
+INVESTIGATE_FURTHER
+WAIT_FOR_SETTLEMENT
+REQUEST_PARTNER_CONFIRMATION
+REVIEW_FEE
+REVIEW_TAX
+REVIEW_REFUND
+REVIEW_DUPLICATE
+REVIEW_DATA_INGESTION
+ESCALATE_TO_CONTROLLER
+
+The AI may explain the recommendation.
+
+But recommendation category must be validated against the evidence.
+
+==================================================
+13. HUMAN APPROVAL
+==================================================
+
+Create:
+
+ControllerAction
+
+Fields:
+
+action_id
+investigation_id
+action_type
+description
+proposed_by
+requires_approval
+approval_status
+approved_by
+approved_at
+
+Approval statuses:
+
+PENDING
+APPROVED
+REJECTED
+
+For Phase 5:
+
+ALL financial-impacting actions must be:
+
+requires_approval = true
+
+The AI must never mark them APPROVED.
+
+==================================================
+14. REVALIDATION
+==================================================
+
+After an action is approved, create a revalidation interface.
+
+Do NOT execute financial changes yet.
+
+The interface should:
+
+1. rerun the relevant control
+2. compare old residual
+3. compare new residual
+4. determine whether the control now passes
+
+Create:
+
+RevalidationResult
+
+Fields:
+
+control_id
+previous_residual
+new_residual
+previous_status
+new_status
+resolved
+explanation
+
+This establishes:
+
+DETECT
+→ INVESTIGATE
+→ RESOLVE
+→ REVALIDATE
+
+==================================================
+15. LLM ABSTRACTION
+==================================================
+
+Create an LLM provider interface.
+
+Example:
+
+LLMProvider
+
+Methods:
+
+generate_hypotheses()
+summarize_evidence()
+generate_explanation()
+
+Do NOT hard-code the application around one LLM provider.
+
+Create a deterministic mock provider for tests.
+
+The system must work without an external API key.
+
+If no LLM is configured:
+
+use the deterministic investigation engine.
+
+This is important for reproducible testing.
+
+==================================================
+16. AGENT STATE MACHINE
+==================================================
+
+Create explicit controller states:
+
+DETECTED
+INVESTIGATING
+EVIDENCE_COLLECTED
+HYPOTHESES_TESTED
+VERIFIED
+RECOMMENDATION_READY
+AWAITING_APPROVAL
+REVALIDATING
+RESOLVED
+INCONCLUSIVE
+
+Do not allow invalid state transitions.
+
+==================================================
+17. AUDIT TRAIL
+==================================================
+
+Every agent investigation step must create an audit record.
+
+Create:
+
+AgentAuditEvent
+
+Fields:
+
+audit_id
+investigation_id
+timestamp
+actor
+action
+tool_name
+input_summary
+output_summary
+evidence_ids
+calculation_ids
+
+Actors:
+
+SYSTEM
+AGENT
+CONTROLLER
+
+Never store sensitive full database dumps in audit logs.
+
+Store references and summaries.
+
+==================================================
+18. API ENDPOINTS
+==================================================
+
+Add:
+
+POST /agent/investigate
+
+GET /agent/investigations/{investigation_id}
+
+GET /agent/investigations/{investigation_id}/evidence
+
+GET /agent/investigations/{investigation_id}/hypotheses
+
+GET /agent/investigations/{investigation_id}/audit
+
+POST /agent/investigations/{investigation_id}/recommendation
+
+POST /agent/investigations/{investigation_id}/approve
+
+POST /agent/investigations/{investigation_id}/revalidate
+
+Approval endpoint must NOT execute financial changes.
+
+It only records explicit approval.
+
+==================================================
+19. SYNTHETIC END-TO-END SCENARIOS
+==================================================
+
+Create deterministic scenarios.
+
+SCENARIO A — Missing payout
+
+Expected:
+
+₹10,000
+
+Actual:
+
+₹9,000
+
+Create evidence showing a missing ₹1,000 payout.
+
+The agent should identify:
+
+MISSING_EVENT
+
+with supporting evidence.
+
+SCENARIO B — Duplicate payout
+
+Create two payout records representing the same underlying payout.
+
+Expected:
+
+₹10,000
+
+Actual:
+
+₹11,000
+
+The agent should identify:
+
+DUPLICATE_EVENT
+
+if evidence supports it.
+
+SCENARIO C — Timing difference
+
+Internal settlement:
+
+10:00
+
+Bank settlement:
+
+10:23
+
+Configured tolerance:
+
+30 minutes
+
+The agent should identify:
+
+TIMING_DIFFERENCE
+
+and distinguish this from an amount discrepancy.
+
+SCENARIO D — Fee difference
+
+Expected fee:
+
+₹100
+
+Recorded fee:
+
+₹120
+
+The agent should identify:
+
+FEE_DIFFERENCE
+
+SCENARIO E — Insufficient evidence
+
+Create a control failure where no available event explains the discrepancy.
+
+The agent must return:
+
+retrieval_status = INSUFFICIENT_EVIDENCE
+
+reasoning_status = INCONCLUSIVE
+
+root_cause = UNKNOWN
+
+It must NOT invent a cause.
+
+==================================================
+20. TESTS
+==================================================
+
+Add tests for:
+
+1. investigation creation
+2. tool schema validation
+3. read-only tool behavior
+4. deterministic calculator
+5. evidence creation
+6. hypothesis creation
+7. hypothesis rejection
+8. hypothesis support
+9. retrieval failure
+10. reasoning uncertainty
+11. root-cause classification
+12. investigation state machine
+13. recommendation validation
+14. human approval requirement
+15. approval cannot be performed by agent
+16. revalidation
+17. audit trail
+18. mock LLM provider
+19. missing payout scenario
+20. duplicate payout scenario
+21. timing difference scenario
+22. fee difference scenario
+23. insufficient evidence scenario
+24. deterministic repeated investigation
+25. multi-domain investigation
+
+==================================================
+21. SECURITY RULES
+==================================================
+
+The AI agent MUST NOT have:
+
+- arbitrary SQL
+- arbitrary Python execution
+- filesystem access
+- direct database writes
+- payment execution
+- payout execution
+- accounting entry creation
+- unrestricted external network access
+
+Use explicit tools only.
+
+==================================================
+22. ARCHITECTURE
+==================================================
+
+Create:
+
+backend/
+    agent/
+        models.py
+        state_machine.py
+        tools.py
+        calculator.py
+        hypotheses.py
+        investigator.py
+        evidence.py
+        verifier.py
+        recommendations.py
+        approvals.py
+        revalidation.py
+        audit.py
+        llm.py
+
+The architecture should be:
+
+Controls
+   ↓
+Residual Intelligence
+   ↓
+Investigation Request
+   ↓
+Agent
+   ├── Evidence Tools
+   ├── Calculator
+   ├── Hypotheses
+   ├── Verification
+   └── Explanation
+   ↓
+Investigation Report
+   ↓
+Recommendation
+   ↓
+Human Approval
+   ↓
+Revalidation
+
+==================================================
+23. IMPORTANT DIFFERENTIATION
+==================================================
+
+This is NOT a chatbot.
+
+The AI Finance Controller is an evidence-grounded control investigator.
+
+It should answer:
+
+WHAT failed?
+WHY might it have failed?
+WHAT evidence supports the explanation?
+WHAT calculations prove the amount?
+WHAT remains uncertain?
+WHAT should the controller do next?
+DID the control pass after resolution?
+
+The deterministic financial-control layer remains the source of truth.
+
+==================================================
+FINAL VERIFICATION
+==================================================
+
+At the end:
+
+1. Run ALL tests.
+2. Report exact test count.
+3. Verify /health.
+4. Verify /docs.
+5. Run missing payout investigation.
+6. Run duplicate payout investigation.
+7. Run timing difference investigation.
+8. Run fee difference investigation.
+9. Run insufficient evidence investigation.
+10. Show one complete InvestigationReport.
+11. Show audit trail for one investigation.
+12. Confirm agent cannot directly modify financial records.
+13. Confirm Phase 6 was NOT started.
+
+STOP after Phase 5.

@@ -62,9 +62,15 @@ class FinancialEventRepository:
         self,
         *,
         event_type: EventType | str | None = None,
+        event_types: set[EventType | str] | None = None,
         entity_id: str | None = None,
         account_id: str | None = None,
         merchant_id: str | None = None,
+        partner_id: str | None = None,
+        currency: str | None = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        reference_id: str | None = None,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[FinancialEvent]:
@@ -76,12 +82,34 @@ class FinancialEventRepository:
                 statement = statement.where(
                     FinancialEventRecord.event_type == _event_type_value(event_type)
                 )
+            if event_types is not None:
+                statement = statement.where(
+                    FinancialEventRecord.event_type.in_(
+                        [_event_type_value(value) for value in event_types]
+                    )
+                )
             if entity_id is not None:
                 statement = statement.where(FinancialEventRecord.entity_id == entity_id)
             if account_id is not None:
                 statement = statement.where(FinancialEventRecord.account_id == account_id)
             if merchant_id is not None:
                 statement = statement.where(FinancialEventRecord.merchant_id == merchant_id)
+            if partner_id is not None:
+                statement = statement.where(FinancialEventRecord.partner_id == partner_id)
+            if currency is not None:
+                statement = statement.where(FinancialEventRecord.currency == currency)
+            if period_start is not None:
+                statement = statement.where(
+                    FinancialEventRecord.event_timestamp >= period_start.isoformat()
+                )
+            if period_end is not None:
+                statement = statement.where(
+                    FinancialEventRecord.event_timestamp <= period_end.isoformat()
+                )
+            if reference_id is not None:
+                statement = statement.where(
+                    FinancialEventRecord.source_id == reference_id
+                )
 
             statement = statement.order_by(
                 FinancialEventRecord.event_timestamp,

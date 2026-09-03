@@ -1,2 +1,3 @@
 - [Residual baseline comparisons](residual-baseline-comparisons.md) — retain representative baseline samples when exact distribution-shift metrics must be recomputed later.
 - [Reconciliation safety](reconciliation-safety.md) — preserve Decimal values through integer-scaled optimization and isolate currencies before matching.
+- [Controller safety](controller-safety.md) — keep agent reasoning evidence-grounded, calculators authoritative, and financial actions human-approved.

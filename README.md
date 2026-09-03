@@ -113,6 +113,41 @@ The reconciliation API is:
 - `POST /reconciliation/settlement`
 - `GET /reconciliation/{reconciliation_id}`
 
+## AI Finance Controller investigation
+
+Phase 5 adds a guarded investigation service under `backend/agent/`. It
+operates over control results, residual/anomaly summaries, reconciliation
+results, and bounded event evidence. The controller:
+
+- generates deterministic domain-specific hypotheses
+- retrieves only through strict, bounded, read-only tools
+- performs authoritative monetary calculations with `Decimal`
+- records evidence IDs, calculation IDs, retrieval status, and reasoning status
+- classifies evidence-grounded root causes
+- creates recommendations that always require human approval
+- revalidates a rerun control after explicit approval
+- records a compact audit trail without database dumps
+
+The default `MockLLMProvider` keeps the application reproducible and requires no
+API key. An alternate provider can be injected through the `LLMProvider`
+interface, but the provider cannot access the database, execute tools, perform
+financial arithmetic, or approve actions.
+
+The agent API is:
+
+- `POST /agent/investigate`
+- `GET /agent/investigations/{investigation_id}`
+- `GET /agent/investigations/{investigation_id}/evidence`
+- `GET /agent/investigations/{investigation_id}/hypotheses`
+- `GET /agent/investigations/{investigation_id}/audit`
+- `POST /agent/investigations/{investigation_id}/recommendation`
+- `POST /agent/investigations/{investigation_id}/approve`
+- `POST /agent/investigations/{investigation_id}/revalidate`
+
+Approval only records an explicit controller decision. The agent never
+executes payouts, refunds, journal entries, settlement approvals, or other
+financial mutations.
+
 ## Synthetic seed data
 
 The seed script creates 30 deterministic synthetic INR events across every
@@ -130,5 +165,5 @@ Running it again is safe because event creation is idempotent.
 pytest
 ```
 
-AI investigation, cryptographic proofs, frontends, external APIs, and
-autonomous financial actions are intentionally not implemented yet.
+Cryptographic proofs, frontends, external banking APIs, and autonomous
+financial actions are intentionally not implemented yet.

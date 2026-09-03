@@ -29,6 +29,18 @@ from backend.anomaly.residual_models import (
     ResidualObservation,
 )
 from backend.anomaly.residual_store import ResidualStore
+from backend.agent.investigator import FinanceController
+from backend.agent.models import (
+    AgentAuditEvent,
+    ApprovalRequest,
+    ControllerAction,
+    EvidenceItem,
+    InvestigationHypothesis,
+    InvestigationReport,
+    InvestigationRequest,
+    RevalidationRequest,
+    RevalidationResult,
+)
 from backend.database.connection import Database
 from backend.models.financial_event import FinancialEvent
 from backend.repositories.financial_event import FinancialEventRepository
@@ -121,6 +133,7 @@ def create_app(database: Database | None = None) -> FastAPI:
     residual_engine = ResidualIntelligenceEngine()
     distribution_analyzer = ResidualDistributionAnalyzer()
     reconciliation_service = ReconciliationService()
+    finance_controller = FinanceController(repository)
 
     app = FastAPI(
         title="Financial Control Fabric",
@@ -148,6 +161,9 @@ def create_app(database: Database | None = None) -> FastAPI:
 
     def get_reconciliation_service() -> ReconciliationService:
         return reconciliation_service
+
+    def get_finance_controller() -> FinanceController:
+        return finance_controller
 
     registry = build_default_registry()
 
@@ -304,6 +320,151 @@ def create_app(database: Database | None = None) -> FastAPI:
         except ValueError as error:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(error),
+            ) from error
+
+    @app.post("/agent/investigate", response_model=InvestigationReport)
+    def investigate(
+        request: InvestigationRequest,
+        controller: FinanceController = Depends(get_finance_controller),
+    ) -> InvestigationReport:
+        """Investigate a control result through bounded read-only tools."""
+
+        try:
+            return controller.investigate(request)
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(error),
+            ) from error
+
+    @app.get(
+        "/agent/investigations/{investigation_id}",
+        response_model=InvestigationReport,
+    )
+    def get_investigation(
+        investigation_id: str,
+        controller: FinanceController = Depends(get_finance_controller),
+    ) -> InvestigationReport:
+        """Retrieve one bounded investigation report."""
+
+        record = controller.get_record(investigation_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="investigation not found")
+        return record.report
+
+    @app.get(
+        "/agent/investigations/{investigation_id}/evidence",
+        response_model=list[EvidenceItem],
+    )
+    def investigation_evidence(
+        investigation_id: str,
+        controller: FinanceController = Depends(get_finance_controller),
+    ) -> list[EvidenceItem]:
+        record = controller.get_record(investigation_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="investigation not found")
+        return record.evidence
+
+    @app.get(
+        "/agent/investigations/{investigation_id}/hypotheses",
+        response_model=list[InvestigationHypothesis],
+    )
+    def investigation_hypotheses(
+        investigation_id: str,
+        controller: FinanceController = Depends(get_finance_controller),
+    ) -> list[InvestigationHypothesis]:
+        record = controller.get_record(investigation_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="investigation not found")
+        return record.hypotheses
+
+    @app.get(
+        "/agent/investigations/{investigation_id}/audit",
+        response_model=list[AgentAuditEvent],
+    )
+    def investigation_audit(
+        investigation_id: str,
+        controller: FinanceController = Depends(get_finance_controller),
+    ) -> list[AgentAuditEvent]:
+        audit = controller.get_audit(investigation_id)
+        if not audit:
+            raise HTTPException(status_code=404, detail="investigation not found")
+        return audit
+
+    @app.post(
+        "/agent/investigations/{investigation_id}/recommendation",
+        response_model=ControllerAction,
+    )
+    def investigation_recommendation(
+        investigation_id: str,
+        controller: FinanceController = Depends(get_finance_controller),
+    ) -> ControllerAction:
+        try:
+            return controller.request_recommendation(investigation_id)
+        except ValueError as error:
+            raise HTTPException(
+                status_code=404 if "not found" in str(error) else 400,
+                detail=str(error),
+            ) from error
+
+    @app.post(
+        "/agent/investigations/{investigation_id}/approve",
+        response_model=ControllerAction,
+    )
+    def approve_investigation(
+        investigation_id: str,
+        request: ApprovalRequest,
+        controller: FinanceController = Depends(get_finance_controller),
+    ) -> ControllerAction:
+        try:
+            return controller.approve(
+                investigation_id,
+                approved=request.approved,
+                approved_by=request.approved_by,
+            )
+        except ValueError as error:
+            raise HTTPException(
+                status_code=404 if "not found" in str(error) else 400,
+                detail=str(error),
+            ) from error
+
+    @app.post(
+        "/agent/investigations/{investigation_id}/revalidate",
+        response_model=RevalidationResult,
+    )
+    def revalidate_investigation(
+        investigation_id: str,
+        request: RevalidationRequest,
+        controller: FinanceController = Depends(get_finance_controller),
+        control_registry: ControlRegistry = Depends(get_registry),
+    ) -> RevalidationResult:
+        record = controller.get_record(investigation_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="investigation not found")
+        new_result = request.new_control_result
+        if new_result is None:
+            if request.events is None or request.context is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="provide new_control_result or events and context",
+                )
+            try:
+                context_model = CONTEXT_MODELS[record.request.domain]
+                context = context_model.model_validate(request.context)
+                new_result = control_registry.evaluate(
+                    record.request.domain,
+                    request.events,
+                    context,
+                )
+            except (KeyError, ValueError, ValidationError) as error:
+                detail = error.errors() if isinstance(error, ValidationError) else str(error)
+                raise HTTPException(status_code=400, detail=detail) from error
+        try:
+            return controller.revalidate(investigation_id, new_result)
+        except ValueError as error:
+            raise HTTPException(
+                status_code=404 if "not found" in str(error) else 400,
                 detail=str(error),
             ) from error
 
@@ -500,4 +661,5 @@ __all__ = [
     "EventCreateResponse",
     "FinancialEvent",
     "ReconciliationRequest",
+    "InvestigationRequest",
 ]
