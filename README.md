@@ -1,169 +1,79 @@
 # Financial Control Fabric
 
-Production-oriented prototype foundation for deterministic financial controls.
+## AI Finance Controller — Razorpay Buildathon Track 04
 
-## Canonical event model
+**Detect → Investigate → Approve → Revalidate → Prove**
 
-`FinancialEvent` is the shared Pydantic contract for normalized financial
-events. It uses `Decimal` for amounts and supports the event types needed by
-the five control domains.
+Financial Control Fabric is a production-oriented prototype for closing finance-control loops across reconciliation, settlement, merchant payouts, revenue recognition, and cross-entity accounting.
 
-## SQLite event store
+The core principle is:
 
-Phase 1 persists canonical events in `data/financial_control.db` through a
-SQLAlchemy repository. Amounts are stored as exact text representations so
-SQLite never performs financial work with floating-point values. Duplicate
-`event_id` submissions are idempotent and return the existing event.
+> **AI investigates financial exceptions, but deterministic financial controls and humans remain authoritative.**
 
-## API endpoints
+## The Problem
 
-```bash
-uvicorn backend.api.main:app --host 0.0.0.0 --port 5000
-```
+Finance teams can detect a reconciliation mismatch, but the difficult part begins afterward:
 
-- `GET /health` — service health
-- `POST /events` — create an event
-- `GET /events/{event_id}` — retrieve one event
-- `GET /events` — list events with optional `event_type`, `entity_id`,
-  `account_id`, `merchant_id`, `limit`, and `offset` query parameters
+- Why did the mismatch happen?
+- Which financial records explain it?
+- Is it a missing event, duplicate, timing difference, fee, tax, or another root cause?
+- What evidence supports the conclusion?
+- Who approved the recommended action?
+- Did the financial control actually pass after remediation?
+- Can the final control outcome be independently verified?
 
-FastAPI publishes the OpenAPI documentation at `/docs`.
+Financial Control Fabric closes this loop instead of stopping at exception detection.
 
-## Financial control kernel
+## What I Built
 
-Phase 2 adds five deterministic controls. Each implements the same
-`evaluate(events, context)` interface and returns a `ControlResult` containing
-expected amount, actual amount, residual, tolerance, status, explanation, and
-metadata:
+The system combines five deterministic finance controls with residual intelligence, constrained reconciliation, an evidence-grounded AI investigation controller, human approval, deterministic revalidation, and tamper-evident cryptographic control proofs.
 
-- `NODAL_ESCROW`
-- `SETTLEMENT`
-- `MERCHANT_PAYOUT`
-- `REVENUE_RECOGNITION`
-- `CROSS_ENTITY`
+### Five finance-control domains
 
-Financial arithmetic uses `Decimal` only. A control rejects mixed currencies
-instead of silently aggregating them. Control evaluation is read-only.
+1. **Nodal / Escrow reconciliation**
+2. **Multi-bank / partner settlement reconciliation**
+3. **Merchant payout reconciliation**
+4. **Revenue recognition reconciliation**
+5. **Cross-entity reconciliation**
 
-The control API is:
+## Control Architecture
 
-- `GET /controls` — list registered controls
-- `GET /controls/{domain}` — inspect one control definition
-- `POST /controls/evaluate/{domain}` — evaluate a control using a typed
-  context and optional event collection
-
-If `events` is omitted from an evaluation request, the endpoint evaluates the
-events currently in the SQLite event store. Revenue recognition requires an
-explicit expected recognition amount; cash events are not treated as
-recognized revenue automatically.
-
-## Residual distribution intelligence
-
-Phase 3 preserves control outcomes as structured `ResidualObservation` records
-in the separate `residual_observations` table. The analytical layer provides:
-
-- Decimal-safe population statistics, including mean, median, p95, p99,
-  absolute statistics, and positive/negative ratios
-- KS, Wasserstein, and PSI distribution-shift metrics
-- Rolling residual statistics and deterministic CUSUM drift detection
-- Explainable multi-signal anomaly scores with `NORMAL`, `WATCH`, `ANOMALOUS`,
-  and `CRITICAL` severity levels
-- Persisted `ResidualBaseline` records for domain/entity/account windows
-
-Residual analysis never changes financial events, balances, payouts, or
-accounting entries. The read-only endpoints are:
-
-- `GET /residuals`
-- `GET /residuals/{residual_id}`
-- `GET /residuals/distribution/{domain}`
-- `GET /residuals/baseline/{domain}`
-- `POST /residuals/analyze/{domain}`
-
-Synthetic residual populations can be loaded with:
-
-```bash
-python -m scripts.seed_residuals
-```
-
-## Constrained reconciliation engine
-
-Phase 4 adds deterministic many-to-many settlement reconciliation under
-`backend/reconciliation/`. It uses Decimal amounts converted to integer minor
-units for OR-Tools CP-SAT optimization, with a deterministic greedy fallback
-when OR-Tools is unavailable.
-
-The optimizer supports:
-
-- one-to-one, many-to-one, one-to-many, and many-to-many allocations
-- internal and external capacity limits
-- currency isolation with no implicit FX conversion
-- configurable timestamp windows
-- normalized reference matching
-- entity, account, merchant, and partner compatibility constraints
-- explainable compatibility scores and allocation reasons
-- deterministic repeated results and reconciliation IDs
-
-The reconciliation layer only proposes allocations. It never modifies
-financial events, balances, payouts, accounting entries, or settlement
-approval state. A result can be adapted into the existing residual model with
-the service integration point when a caller explicitly chooses to persist it.
-
-The reconciliation API is:
-
-- `POST /reconciliation/settlement`
-- `GET /reconciliation/{reconciliation_id}`
-
-## AI Finance Controller investigation
-
-Phase 5 adds a guarded investigation service under `backend/agent/`. It
-operates over control results, residual/anomaly summaries, reconciliation
-results, and bounded event evidence. The controller:
-
-- generates deterministic domain-specific hypotheses
-- retrieves only through strict, bounded, read-only tools
-- performs authoritative monetary calculations with `Decimal`
-- records evidence IDs, calculation IDs, retrieval status, and reasoning status
-- classifies evidence-grounded root causes
-- creates recommendations that always require human approval
-- revalidates a rerun control after explicit approval
-- records a compact audit trail without database dumps
-
-The default `MockLLMProvider` keeps the application reproducible and requires no
-API key. An alternate provider can be injected through the `LLMProvider`
-interface, but the provider cannot access the database, execute tools, perform
-financial arithmetic, or approve actions.
-
-The agent API is:
-
-- `POST /agent/investigate`
-- `GET /agent/investigations/{investigation_id}`
-- `GET /agent/investigations/{investigation_id}/evidence`
-- `GET /agent/investigations/{investigation_id}/hypotheses`
-- `GET /agent/investigations/{investigation_id}/audit`
-- `POST /agent/investigations/{investigation_id}/recommendation`
-- `POST /agent/investigations/{investigation_id}/approve`
-- `POST /agent/investigations/{investigation_id}/revalidate`
-
-Approval only records an explicit controller decision. The agent never
-executes payouts, refunds, journal entries, settlement approvals, or other
-financial mutations.
-
-## Synthetic seed data
-
-The seed script creates 30 deterministic synthetic INR events across every
-supported event type:
-
-```bash
-python -m scripts.seed_events
-```
-
-Running it again is safe because event creation is idempotent.
-
-## Tests
-
-```bash
-pytest
-```
-
-Cryptographic proofs, frontends, external banking APIs, and autonomous
-financial actions are intentionally not implemented yet.
+```text
+50+ / 1000+ Synthetic Financial Events
+              │
+              ▼
+       Canonical Event Layer
+              │
+              ▼
+      Financial Control Kernel
+              │
+              ▼
+   Control Result + Residual Vector
+              │
+              ▼
+   Residual Distribution Intelligence
+              │
+              ▼
+        AI Controller
+     ┌────────┴────────┐
+     │                 │
+ Evidence Retrieval  Hypotheses
+     │                 │
+     └────────┬────────┘
+              ▼
+          Verification
+              │
+              ▼
+       Human Approval
+              │
+              ▼
+   Deterministic Revalidation
+              │
+              ▼
+             PASS
+              │
+              ▼
+     SHA-256 Merkle Proof
+              │
+              ▼
+          Verification
