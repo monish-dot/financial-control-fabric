@@ -27,7 +27,7 @@ export const Navbar: React.FC = () => {
     { to: '/reconciliation', label: 'Reconciliation', icon: GitCompare },
     { to: '/investigations', label: 'AI Investigation', icon: Search },
     { to: '/approvals', label: 'Approvals', icon: FileCheck },
-    { to: '/proofs', label: 'Control Proof', icon: KeyRound },
+    { to: '/control-proofs', label: 'Control Proof', icon: KeyRound },
   ];
 
   return (

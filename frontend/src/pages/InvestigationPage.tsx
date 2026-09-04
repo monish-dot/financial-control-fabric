@@ -231,7 +231,7 @@ export const InvestigationPage: React.FC = () => {
                     <button
                       onClick={() => {
                         if (report.proof_id) {
-                          navigate(`/proofs?id=${report.proof_id}`);
+                          navigate(`/control-proofs?id=${report.proof_id}`);
                         } else {
                           navigate(`/approvals?id=${report.investigation_id}`);
                         }

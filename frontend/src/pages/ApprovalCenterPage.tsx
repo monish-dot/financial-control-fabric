@@ -191,7 +191,7 @@ export const ApprovalCenterPage: React.FC = () => {
     onSuccess: (proof) => {
       setStatusMessage(`Cryptographic proof ${proof.proof_id} bound successfully! Redirecting...`);
       setTimeout(() => {
-        navigate(`/proofs?id=${proof.proof_id}`);
+        navigate(`/control-proofs?id=${proof.proof_id}`);
       }, 700);
     },
     onError: (err: any) => {
@@ -425,7 +425,7 @@ export const ApprovalCenterPage: React.FC = () => {
               <div className="flex items-center justify-end">
                 {report.proof_id ? (
                   <button
-                    onClick={() => navigate(`/proofs?id=${report.proof_id}`)}
+                    onClick={() => navigate(`/control-proofs?id=${report.proof_id}`)}
                     className="flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold shadow transition-all"
                   >
                     View Sealed Merkle Proof <ArrowRight className="w-3.5 h-3.5" />

@@ -34,7 +34,7 @@ export const App: React.FC = () => {
               <Route path="/reconciliation" element={<ReconciliationPage />} />
               <Route path="/investigations" element={<InvestigationPage />} />
               <Route path="/approvals" element={<ApprovalCenterPage />} />
-              <Route path="/proofs" element={<ControlProofPage />} />
+              <Route path="/control-proofs" element={<ControlProofPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
